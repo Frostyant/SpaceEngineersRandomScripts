@@ -1,0 +1,50 @@
+200mm Missile Container = 0
+25x184mm NATO Ammo Container = 1
+5.56x45mm NATO Magazine = 2
+Bulletproof Glass = 3
+Computer = 4
+Construction Component	= 5
+Detector Components = 6
+Display = 7
+Explosives = 8
+Girder = 9
+Gravity Generator Components = 10
+Interior Plate = 11
+Large Steel Tube = 12
+Medical Components = 13
+Metal Grid = 14
+Motor = 15
+Power Cell = 16
+Radio-Communication Components = 17
+Reactor Components = 18
+Small Steel Tube = 19
+Solar Cell = 20
+Steel Plate	= 21
+Superconductor Component = 22
+Thruster Components = 23
+
+
+"200mm Missile Container;\
+25x184mm NATO Ammo Container;\
+5.56x45mm NATO Magazine;\
+Bulletproof Glass;\
+Computer;\
+Construction Component;\
+Detector Components;\
+Display;\
+Explosives;\
+Girder;\
+Gravity Generator Components;\
+Interior Plate;\
+Large Steel Tube;\
+Medical Components;\
+Metal Grid;\
+Motor;\
+Power Cell;\
+Radio-Communication Components;\
+Reactor Components;\
+Small Steel Tube;\
+Solar Cell;\
+Steel Plate;\
+Superconductor Component;\
+Thruster Components"

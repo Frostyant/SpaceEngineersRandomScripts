@@ -1,0 +1,32 @@
+//Test : save curr pos
+
+// Block names (editable)//
+const string TXT_NAME = "debug" ;
+const string CNTRL_NAME = "cntrl"; 
+
+
+
+//Block Variables //
+IMyTextPanel txt;
+IMyRemoteControl cntrl;
+
+
+
+//Main//
+
+public void Main(){
+
+	//Initialising//
+
+	IMyRemoteControl cntrl = GridTerminalSystem.GetBlockWithName(CNTRL_NAME) as IMyRemoteControl; 
+ 
+	IMyTextPanel txt = GridTerminalSystem.GetBlockWithName(TXT_NAME) as IMyTextPanel;
+
+
+
+	//Getting Position//
+
+	Vector3 pos;
+
+	pos = cntrl.GetPosition();
+}

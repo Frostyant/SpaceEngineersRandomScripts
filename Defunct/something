@@ -1,0 +1,131 @@
+'''
+Created on Mar 11, 2017
+
+@author: Anthony
+'''
+
+import pylab
+import numpy
+
+#Gets the norm of the difference of f and f*
+#a and b are coefficients in fourier series of f
+# NormF is Norm of f
+def GetDeltaF(a,b,NormF):
+    #initial terms
+    output = NormF + numpy.pi * (a[0]**2)/2
+
+    #Sum over terms, b has EXACTLY n terms, unlike a
+    for it in range(len(b)):
+        #its it+1 instead of it because python starts at 0
+        output = output + numpy.pi * ( a[it+1]**2 + b[it+1]**2 )
+    return output
+
+
+#Sets up a and b for question 1, returns a list of 2 lists
+#n is number of iterations
+def GetABForQ1(n):
+    #a has the initial a0 term which b does not
+    a = [0] * (n+1)
+
+    for it in range(n+1):
+        #read as "if it even" else "it odd"
+        if(it % 2 == 0):
+            #as found previously
+            a[it] = 0
+        else:
+            #as found previously
+            a[it] = -4 /(numpy.pi * it**2)
+
+    #remember that abs(x) is even
+    b = [0]*n
+
+    #returning as list
+    output = [a,b]
+    return output
+
+#Sets up a and b for question 1, returns a list of 2 lists
+#n is number of iterations
+def GetABForQ2(n):
+    #remember that f(x) is odd now
+    a = [0]*(n+1)
+
+    #a has the initial a0 term which b does not
+    b = [0] * (n)
+
+    for it in range(n):
+        #read as "if it even" else "it odd"
+        if(it % 2 == 0):
+            #as found previously
+            a[it] = 0
+        else:
+            #as found previously
+            a[it] = 4 /(numpy.pi * it)
+
+    #returning as list
+    output = [a,b]
+    return output
+
+#Gets f* given a and b over a linspace x
+def GetFStar(a,b,x,n):
+    output = a[0]/2 *x/x
+    if n > 1:
+        for it in range(n):
+            output = output +  a[it+1] * numpy.cos((it+1)*x) + b[it] * numpy.sin((it+1)*x)
+    return output
+
+#Plots graphs of f* for m=1 up to n
+def PlotN(a,b,n,Q):
+    x = numpy.linspace(-numpy.pi,numpy.pi,1000)
+    f, axarr = pylab.subplot(n+1,sharex = True)
+    print('in plot')
+    for it in range(n):
+        print(it)
+        y = GetFStar(a, b, x,it)
+        if Q == 1:
+            z = abs(x)
+            axarr[it] = pylab.plot(x,z,'b')
+        else:
+            z = numpy.array([-1,1])
+            x1 = numpy.linspace(-numpy.pi,numpy.pi,1)
+            axarr[it] = pylab.plot(x1,z,'b')
+        axarr[it] = pylab.plot(x,y,'r')#        axarr[it]._set_title('f* for n = ' + str(it))
+    pylab.ylabel('g(x)')
+    pylab.xlabel('x')
+    pylab.show()
+    print('terminal')
+
+def plot17(a,b,Q):
+    x = numpy.linspace(-numpy.pi,numpy.pi,1000)
+    y=[0]*17
+    it=1
+    it2=0
+    if(Q==1):
+        z=numpy.abs(x)
+    while it <= 17:
+        y[it2] = GetFStar(a, b, x, it)
+        it = it+2
+        it2=it2+1
+    #pylab.plot(x,z,'r')
+    #pylab.plot(x,y[0],'b')
+    #pylab.plot(x,y[1],'g')
+    #pylab.plot(x,y[2],'c')
+    #pylab.plot(x,y[3],'m')
+    #pylab.plot(x,y[4],'y')
+    #pylab.plot(x,y[5],'k')
+    pylab.show()
+
+    pylab.plot(x,z,'r')
+    pylab.plot(x,y[6],'b')
+    pylab.plot(x,y[7],'g')
+    pylab.plot(x,y[8],'c')
+    pylab.show()
+
+
+
+def Q1():
+    c= GetABForQ1(17)
+    print(c[0])
+    print(c[1])
+    plot17(c[0], c[1], 1)
+
+Q1()

@@ -1,0 +1,402 @@
+#region pre-script
+using System;
+using System.Text;
+using System.Collections;
+using System.Collections.Generic;
+using VRageMath;
+using VRage.Game;
+using Sandbox.ModAPI.Interfaces;
+using Sandbox.ModAPI.Ingame;
+using Sandbox.Game.EntityComponents;
+using VRage.Game.Components;
+using VRage.Collections;
+using VRage.Game.ObjectBuilders.Definitions;
+using VRage.Game.ModAPI.Ingame;
+using SpaceEngineers.Game.ModAPI.Ingame;
+
+namespace IngameScript
+{
+    public class Program : MyGridProgram
+    {
+        #endregion
+        //To put your code in a PB copy from this comment...
+        public Program()
+        {
+
+        }
+
+        public void Save()
+        {
+
+        }
+
+        //Function of Script//
+        /*
+        Function of script is to produce a set amount of components
+        */
+
+        /*==#=====#====#=====#=====#=====#=====#=====#====#=====#=====#=====#=====#=====#====#===================*/
+        //Setup//
+        //IMPORTANT//
+        //ENSURE BLOCK NAMES BELOW MATCH !
+        /*==#=====#====#=====#=====#=====#=====#=====#====#=====#=====#=====#=====#=====#====#===================*/
+
+        //Block Names//
+        //Text block with info in it (such as ID and passwords to acces this machine)
+        public const string REMOTE_CONTROL = "control";
+        public const string DATABASE_NAME = "database";
+
+
+
+        //Other Variables
+        public const char SEP = ';';
+        public const char SEP1 = ',';
+        public const string SCOUTING_ORDER = "SCT";
+        public const string SCOUTING_WAYPOINT_DATATYPE = "SCTDT";
+        //Scouting DataType save format
+
+
+
+        /*==#=====#====#=====#=====#=====#=====#=====#====#=====#=====#=====#=====#=====#====#===================*/
+        //dont edit unless you know what you are doing !//
+        /*==#=====#====#=====#=====#=====#=====#=====#====#=====#=====#=====#=====#=====#====#===================*/
+
+        //Methods//
+
+
+        /// <summary>
+        /// Makes Vessel Go To Vector 3 position
+        /// Alternative to Draig's Movement Script, innacurate but still usefull for tasks such as scouting
+        /// Has Built-in Collision Avoidance from KSH
+        /// </summary>
+        /// <param name="cntrl"></param>
+        /// Remote Control
+        /// <param name="Pos"></param>
+        /// Target Position
+        /// <param name="Relative"></param>
+        /// Whether Coords are relative or not
+        public void GoTo(IMyRemoteControl cntrl, Vector3 Pos, bool Relative = false)
+        {
+            //orders ship to move to Vector location
+            Vector3 obj;
+
+            if (Relative == true)
+            {
+                obj = Pos + cntrl.GetPosition();
+            }
+            else
+            {
+                obj = Pos;
+            }
+
+            cntrl.ClearWaypoints();
+            cntrl.AddWaypoint(obj, "obj");
+            cntrl.SetAutoPilotEnabled(true);
+        }
+
+        //Extracts "raw" info from text panel
+        public string GetRaw(IMyTextPanel txt)
+        {
+            string output;
+            output = txt.GetPublicText();
+            return output;
+        }
+
+        public string[] GetRef(IMyTextPanel txt, char sep)
+        {
+            //Divides RAW into an array for later use
+            string raw;
+            raw = GetRaw(txt);
+            string[] output = raw.Split(sep);
+            return output;
+        }
+
+        #region LCD-Print-Basic
+
+        public void LcdPrintln(string msg)
+        {
+            LcdPrint(msg + '\n');
+        }
+
+        public void LcdPrint(string msg)
+        {
+            LcdPrint(msg, "VarPanel");
+        }
+
+        public void LcdPrintln(string msg, string lcdName = "VarPanel")
+        {
+            LcdPrint(msg + '\n', lcdName);
+        }
+
+        public void LcdPrint(string msg, string lcdName = "VarPanel")
+        {
+            IMyTextPanel lcd =
+              GridTerminalSystem.GetBlockWithName(lcdName) as IMyTextPanel;
+            lcd.WritePublicText(lcd.GetPublicText() + msg);
+        }
+
+        public void LcdPrint(List<string> msg, string lcdName = "VarPanel")
+        {
+            IMyTextPanel lcd =
+              GridTerminalSystem.GetBlockWithName(lcdName) as IMyTextPanel;
+            lcd.WritePublicText(lcd.GetPublicText() + msg);
+        }
+
+        /// <summary>
+        /// Clears selected LCD's public text and returns it.
+        /// </summary>
+        /// <param name="lcdName">Block Name of LCD (not the Title!)</param>
+        /// <returns></returns>
+        public string LcdClear(string lcdName)
+        {
+            IMyTextPanel lcd =
+              GridTerminalSystem.GetBlockWithName(lcdName) as IMyTextPanel;
+            string text = lcd.GetPublicText();
+            lcd.WritePublicText("");
+            return text;
+
+        }
+
+        /// <summary>
+        /// Clears the default "VarPanel" LCD.
+        /// </summary>
+        /// <returns></returns>
+        public string LcdClear()
+        {
+            return LcdClear("VarPanel");
+        }
+
+        /// <summary>
+        /// Finds an LCD with the specified string as its block name (not its Title!)
+        /// </summary>
+        /// <param name="lcdName"></param>
+        /// <returns></returns>
+        public IMyTextPanel getLcd(string lcdName)
+        {
+            return GridTerminalSystem.GetBlockWithName(lcdName) as IMyTextPanel;
+        }
+
+        public IMyTextPanel getLcd()
+        {
+            return getLcd("VarPanel");
+        }
+
+        #endregion
+
+        public void RemoveDataType(IMyTextPanel txt, string type, char sep = '\n', char InternalSep = ':')
+        {
+
+            string[] FullData = GetRef(txt, sep);
+
+            //convert to list
+            List<string> output = new List<string>(FullData);
+
+            output.RemoveAll(x => x.Split(InternalSep).First().Equals(type));
+
+            LcdClear(DATABASE_NAME);
+
+            LcdPrint(DATABASE_NAME,output);
+
+        }
+
+    
+
+
+
+
+        /// <summary>
+        /// really, do I need to do this ?
+        /// </summary>
+        /// <param name=""></param>
+        /// <returns></returns>
+        public Vector3 GetBlockPosition(string BLOCK_NAME)
+        {
+            //Returns Block Position//
+
+            Vector3 output;
+
+            IMyTerminalBlock block = GridTerminalSystem.GetBlockWithName(BLOCK_NAME) as IMyTerminalBlock;
+
+            output = block.GetPosition();
+
+            return output;
+        }
+
+        /// <summary>
+        /// does what is says on the tin
+        /// </summary>
+        /// <param name="gps"></param>
+        /// in GPS format (same as if you would copy past it from a GPS coords in-game)
+        /// <returns></returns>
+        public Vector3 GPStoVector(string gps)
+        {
+
+            string[] coords;
+
+            //Getting Target Position//
+
+            coords = gps.Split(':');
+
+            //Pending, need to change indices
+
+            Vector3 gpsvector = new Vector3(Convert.ToSingle(coords[1]),
+                                     Convert.ToSingle(coords[2]),
+                                     Convert.ToSingle(coords[3]));
+
+            return gpsvector;
+        }
+
+        /// <summary>
+        /// Does what it says on the tin
+        /// </summary>
+        /// <param name="vec"></param>
+        /// <returns></returns>
+        public string VectorToGPS(Vector3 vec)
+        {
+            string output;
+
+            output = "GPS:location:"
+                + Convert.ToString(vec.X) + ":"
+                + Convert.ToString(vec.Y) + ":"
+                + Convert.ToString(vec.Z) + ":";
+
+            return output;
+        }
+
+        /// <summary>
+        /// Extracts txt info, splits it and gets relevant DataChunks
+        /// </summary>
+        /// <param name="txt"></param>
+        /// txt panel
+        /// <param name="sep"></param>
+        /// separator used in split, which distinguishes between the different data chunks
+        /// <param name="type"></param>
+        /// type of data chunk you want
+        /// <param name="InternalSep"></param>
+        /// separator used in split, which distinguishes between the info within a data chunk
+        /// <returns></returns>
+        public List<string> GetData(IMyTextPanel txt, string type, char sep = '\n', char InternalSep = ':')
+        {
+            string[] FullData = GetRef(txt, sep);
+            List<string> output = new List<string>();
+
+            foreach (string DataChunk in FullData)
+            {
+                string[] Data = DataChunk.Split(InternalSep);
+                if (Data[0] == type)
+                {
+                    output.Add(DataChunk);
+                }
+
+            }
+            return output;
+        }
+
+        /// <summary>
+        /// Extracts txt info, splits it and gets relevant DataChunks
+        /// </summary>
+        /// <param name="txt"></param>
+        /// txt panel
+        /// <param name="sep"></param>
+        /// separator used in split, which distinguishes between the different data chunks
+        /// <param name="type"></param>
+        /// type of data chunk you want
+        /// <param name="InternalSep"></param>
+        /// separator used in split, which distinguishes between the info within a data chunk
+        /// <returns></returns>
+        public List<string> GetData(string txtname, string type, char sep = '\n', char InternalSep = ':')
+        {
+
+            IMyTextPanel txt = GridTerminalSystem.GetBlockWithName(txtname) as IMyTextPanel;
+
+            string[] FullData = GetRef(txt, sep);
+            List<string> output = new List<string>();
+
+            foreach (string DataChunk in FullData)
+            {
+                string[] Data = DataChunk.Split(InternalSep);
+                if (Data[0] == type)
+                {
+                    output.Add(DataChunk);
+                }
+
+            }
+            return output;
+        }
+
+        /// <summary>
+        /// Sets up Scouting Order
+        /// </summary>
+        /// <param name="argument"></param>
+        /// Argument for Starting order is of form :
+        /// 
+        /// Center of Area (cube) to scout, 
+        /// 
+        /// Half-Offset between each scouting rectangle in ADDITION of standard 100m offset due to Sensor range 
+        /// (Bigger => Faster & Bigger chance of Missing Asteroids),
+        /// (Standard is 25 m)
+        /// 
+        /// Half-Length of Cube to Scout (<=> "Radius", more intuitive when compared to say comms range)
+        /// (Standard is 3.5 km )
+        public void ScoutSpace(string argument) {
+
+                string[] intel = argument.Split(SEP1);
+
+                Vector3 Target = GPStoVector(intel[0]);
+
+
+                //Initialising
+                #region
+                if (intel.Length >= 2 && intel[1] != " ")
+                {
+                    float offset = Convert.ToSingle(intel[1]);
+                }
+                else
+                {
+                    float offset = 25f;
+                }
+
+                if (intel.Length >= 3 && intel[2] != " ")
+                {
+                    float radius = Convert.ToSingle(intel[2]);
+                }
+                else
+                {
+                    float radius = 3500f;
+                }
+                #endregion
+
+                List<string> data = GetData(DATABASE_NAME,SCOUTING_WAYPOINT_DATATYPE);
+
+        }
+
+
+
+
+
+        /*==#=====#====#=====#=====#=====#=====#=====#====#=====#=====#=====#=====#=====#====#===================*/
+        //dont edit unless you know what you are doing !//
+        /*==#=====#====#=====#=====#=====#=====#=====#====#=====#=====#=====#=====#=====#====#===================*/
+
+        void Main(string argument)
+        {
+            string[] NewArgument=argument.Split(SEP);
+
+            if(NewArgument[0] == SCOUTING_ORDER)
+            {
+                if(NewArgument.GetLength(0) == 2)
+                {
+                    ScoutSpace(NewArgument[1]);
+                }else
+                {
+                    Scout();
+                }
+                
+            }
+            
+        }
+        //to this comment.
+        #region post-script
+    }
+}
+#endregion

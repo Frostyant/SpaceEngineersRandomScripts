@@ -1,0 +1,118 @@
+//Next Waypoint//
+
+//Selects first waypoint, removes it from waypoint list, puts it into orders, executes Movement module
+
+// Block names (editable) //
+const string TXT0_NAME = "info"
+//Info Should be of the form : Ship ID $ Name of Laser Antenna 1 % Name of Laser Antenna 2 % ... $ Commander ID $ Commander GPS
+//TECHNICALLY we need our own ID here
+const string TXT1_NAME = "orders";
+//Orders is Assumed to be of the form : Sender ID; Receiver ID; Order Type; other info 0; other info 1 etc... 
+//here : "M" = Movement, other info 0 = GPS position to move to
+const string TXT2_NAME = "waypoints_queue";
+//While Waypoints DO exist in Space engineers I descided to not use that feature so that the GoHere module could be replaced
+//Waypoints_queue is of the form : GPS 01; GPS 02; GPS 03; etc...
+const string TIMER_NAME = "M";
+
+
+
+//Functions//
+
+public string GetRaw(IMyTextPanel txt){   
+   
+	string output;   
+   
+	output=txt.GetPublicText();   
+   
+	return output;   
+}   
+   
+public string[] GetRef(IMyTextPanel txt,char sep){   
+   
+	string raw;  
+   
+	raw=GetRaw(txt);   
+   
+	string[] output =raw.Split(sep);   
+   
+	return output;   
+   
+}
+
+
+public void Execute(string TIMER_NAME){
+
+	//IMyBeacon bacon = GridTerminalSystem.GetBlockWithName("Bacon") as IMyBeacon;
+
+	//bacon.SetCustomName("IN EXECUTE");
+
+	IMyTimerBlock timer = GridTerminalSystem.GetBlockWithName(TIMER_NAME) as IMyTimerBlock;
+
+	if(timer != null){
+
+		//False find what is the variable type of the actions.
+
+		ITerminalAction start;
+
+		start=timer.GetActionWithName("Start");
+
+		start.Apply(timer);
+	}
+}
+
+
+
+
+public void Main(){
+
+	//Initialising Variables//
+
+	IMyTextPanel txt0 = GridTerminalSystem.GetBlockWithName(TXT0_NAME) as IMyTextPanel; 
+ 
+	IMyTextPanel txt1 = GridTerminalSystem.GetBlockWithName(TXT1_NAME) as IMyTextPanel;
+
+	IMyTextPanel txt2 = GridTerminalSystem.GetBlockWithName(TXT2_NAME) as IMyTextPanel;
+
+
+
+	//Extracting info//
+
+	string[] txt0_ref;
+
+	txt0_ref = GetRef(txt0,'$');
+
+
+
+	//Extracting waypoints queue//
+
+	string[] txt2_ref;
+
+	txt2_ref = GetRef(txt2,';');
+
+
+	//Getting Next Waypoint Orders//
+
+	string orders;
+
+	orders = txt0_ref[0] + ";" + txt0_ref[0] + ";" + "M" + ";" + txt2_ref[0];
+
+
+
+	//Saving Orders//
+
+	txt1.WritePublicText(orders);
+
+
+
+	//Execute Orders//
+
+	Execute("M")
+
+
+	//Removing First Waypoint//
+	orders = orders.Skip(1).ToArray();
+
+
+
+
+}

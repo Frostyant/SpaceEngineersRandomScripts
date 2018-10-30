@@ -1,0 +1,13 @@
+//Order Queue//
+
+//This script executes one order after the other in the Queue
+
+// Block names (editable)//
+const string TXT0_NAME = "orders"
+const string TXT1_NAME = "orders_queue"
+
+//Block Variables //
+IMyTimerBlock timer0;
+IMyTimerBlock timer1;
+IMyTextPanel txt0; 
+IMyTextPanel txt1;

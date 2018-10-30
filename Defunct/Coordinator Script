@@ -1,0 +1,78 @@
+//Coordinator Script (Initialise)
+
+//NOTE : this script does not actually give any orders, to do so just rename the antenna with whatever programmable block/person actually gives out the order
+//this script's purpuse is mainly to note how many units are under its command so that order scripts can react accordingly
+//features to add : verifying if unit still is functional
+
+
+void Main(){
+
+
+	//Names of blocks
+	Const String TEXT_NAME = "info";
+	Const String TEXT2_NAME = "unitinfo";
+	//END
+
+	//Block Variables
+	IMyLaserAntenna laser = null;
+	IMyTextPanel txt = null;
+	//END
+
+	//Initializing blocks
+	txt = GridTerminalSystem.GetBlockWithName(TXT_NAME) as IMyTextPanel;
+	//END
+
+	//getting the info of this structure
+	raw=txt.GetPublicText();
+	string[] infoarray = raw.Split(';');
+	//END
+
+	//Getting Laser Antenna
+	Const String LASER_NAME= inforarray[0];
+	laser = GridTerminalSystem.GetBlockWithName(LASER_NAME) as IMyLaserAntenna;
+	//END
+
+	//Getting name  of other Laser Antenna
+	raw=laser.DetailedInfo[];
+	string[] intel = raw.Split(';');
+	//END
+
+	//Verifying if already on register
+	//All produced drones must have a unique serial number of the form : "UnitType"-"Factor Serial"-"UnitSerial" 
+	//Example serials : MCV2-12E-0001
+
+	//testing Serials
+	new int registersize = infoarray[1];
+	new int[] test = [0,0];
+	new int test2= 0;
+	for (int i = 3; i <= registersize + 3, i ++ ){
+		if (intel[0] != infoarray[i]){
+		test[i]=0;
+		
+		}else{test[i]=1;
+		}
+	}
+
+	//Checking if all Serials are different (if 1)
+	for (int i = 3; i <= registersize + 3, i ++ ){
+		if (test[0] == 1){
+		registersize=registersize;
+		break;
+		}
+		if(i=registersize+3){
+		registersize=registersize+1;
+		test2=1;
+		infoarray[registersize+3]=intel[0];
+		}
+	}
+	//END
+
+	//Rewriting register if there is a new unit
+	if (test2==1){
+	map.WritePublicText(String.Format('{0};{1}',raw,intel[0]);
+	}
+	//END
+
+
+
+}

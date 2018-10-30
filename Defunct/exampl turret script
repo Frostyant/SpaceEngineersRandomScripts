@@ -1,0 +1,2019 @@
+// Gun Fire Control System (GFCS) script by xmuni 
+// Mark 3 
+ 
+// Space Engineers in-game script for the programmable block 
+// This script coordinates multiple ship turrets in order to accurately aim at a moving target with deflection (lead). 
+// Visit the mod page for instructions on how to use this script: http://steamcommunity.com/sharedfiles/filedetails/?id=516792514 
+ 
+// This script uses the BlueG_Radar mod and code by Bradley Regula: http://steamcommunity.com/sharedfiles/filedetails/?id=369578004 
+// This script uses the GetDirectionTo function by robbym: http://forum.keenswh.com/threads/getdirectionto-function.7242345 
+ 
+ 
+ 
+ 
+//**************************// 
+//******* Settings *******// 
+//*************************// 
+ 
+ 
+ 
+// 1. BASIC SETTINGS 
+ 
+ 
+bool vanilla_tracking = false;           // set to true to use this script without the BlueG Radar. (*) See the mod page for instructions. 
+bool only_shoot_in_range = true ;    // if true, Auto Fire will only fire a turret's guns if the target is in range. 
+double defaultconvergence = 1000;  // distance (in meters) that the guns will converge at if there's no target. Unused if a convergence text panel is found. 
+bool no_director = false;                   // if true, the script won't look for a director and instead will just look for the closest target (it defaults to Auto Target). 
+bool switch_to_controlled = true;     // if true, controlling a director will make it the currently used director. If false, only the first available director (starting from Director1) will be used, each other director will be used only if all previous directors haven't been found. If this is true and Auto Target is on, controlling a director will temporarily disable Auto Target. 
+bool idle_if_no_targets = true;          // (only for Auto Target mode) if true, rotor turrets will return to idle position (all rotors turn to zero or between the max/min angle) if the sensors don't detect any target. If false, the rotors will just stop wherever they are. 
+ 
+ 
+// (*) IMPORTANT NOTE: This is only for use without the BlueG Radar. While it's on, the script will track the movement of the director to calculate speed (thus without needing the BlueG Radar). 
+// However, you will have to obtain the target distance (convergence) by other means, and supply it to the text panel for the convergence. 
+// You will also want to use the timer toggle Auto Lead to turn off lead calculation when you don't need it (i.e. when firing at stationary targets or at empty space). Otherwise it will interfere with the turret aim while you're turning the director. 
+ 
+ 
+// these are the default settings for the timer toggles (only used in case the relative timer toggle is not found). True = on; False = off. 
+bool default_autolead = true;            // true = guns will lead a moving target; false = guns will always shoot where you aim. 
+bool default_autoaim = true;            // (only used when autotarget is off) true = turrets will aim for the center of mass of the current target; false = turrets will aim exactly where you're pointing them (with or without lead) 
+bool default_autotarget = false;        // true = turrets will automatically aim at the closest target, disregarding the director; false = turrets will always follow the director 
+bool default_autofire = false;            // true = guns will fire if there's a target in front and in range; false = guns won't automatically fire 
+ 
+ 
+// 2. NAMES OF BLOCKS 
+ 
+ 
+// text panels that the script reads from 
+string panel_turret_groups = "Text panel GFCS";            // text panel or LCD panel with the settings for each turret group. If you have multiple panels with this name, the script will read from all of them. Turn off a panel if you want the script to temporarily ignore it. 
+string panel_convergence = "Text panel convergence";    // (optional) text panel or LCD panel with the convergence (pretty much necessary if you're using vanilla tracking; otherwise can still be used to set the default convergence) 
+ 
+// terms that make up the names of the director blocks 
+string DIRECTOR_BASE_NAME = "Director";                    // name of each director turret block (followed by the director number) and base name of the rotor director blocks (again, followed by the director number) 
+string name_director_remote = "Remote Control";            // only for rotor-based directors (e.g. "Director Remote Control) 
+string name_director_rotorx = "RotorX";                 // only for rotor-based directors (e.g. "Director RotorX) 
+string name_director_rotory = "RotorY";                    // only for rotor-based directors (e.g. "Director RotorY) 
+ 
+// you can use the Super Sensor mod (http://steamcommunity.com/sharedfiles/filedetails/?id=504736273) instead of (or in addition to) the BlueG Radar in order to detect targets. 
+string name_super_sensor = "Super Sensor";                // the name of each super sensor should contain this. 
+ 
+// optional timer blocks that act as toggles 
+string name_autolead = "Timer Block Auto Lead";            // (optional) Name of the timer block that toggles target leading (deflection). Very useful if you're using vanilla tracking. 
+string name_autotarget = "Timer Block Auto Target";        // (optional) Name of the timer block that toggles automatic targeting (the turrets aim at the closest target) 
+string name_autoaim = "Timer Block Auto Aim";            // (optional) Name of the timer block that toggles Auto Aim (whether the turrets will aim at the center of mass of the current target, or exactly where you're aiming) 
+string name_autofire = "Timer Block Auto Fire";            // (optional) Name of the timer block that toggles Auto Fire (whether the turrets will fire automatically if a target is in range) 
+string name_fire_all = "Timer Block Fire All";            // (optional) Same as Auto Fire, but works even when there is no target detected (i.e. turrets will shoot at empty space if the director points there) 
+string name_idle = "Timer Block Idle";                    // (optional) Name of the timer block that toggles turrets idling (only for rotor turrets). All rotors will turn to zero and all pistons will retract. 
+ 
+// optional text/LCD panels 
+string panel_warnings = "Text panel warnings";            // this will tell you whether turrets are missing or incomplete 
+string panel_status = "Text panel status";                // this will display information on the script's status 
+string panel_targets = "Text panel targets";            // this will list all of the targets found 
+string panel_position = "Text panel position";            // this will display the target's position 
+string panel_speed = "Text panel speed";                // this will display the target's speed 
+string panel_acceleration = "Text panel acceleration";    // this will display the target's acceleration 
+string panel_your_ship_speed = "Text panel your speed";    // this will display the speed of your own ship 
+string panel_override = "Text panel override";            // the script will read or write the target's coordinates to or from this text panel depending on whether "write_override_info" is set to false or true. The text panel should be turned on (turn it off to temporarily suspend the override). 
+ 
+ 
+// 3. ADVANCED SETTINGS 
+ 
+ 
+bool write_override_info = false;    // if false (default), the script will read the target's coordinates from the override text panel and use them instead of the using info from the director and sensors. If true, the script will instead write the info from its director and sensors to the override text panel (which another script can then read from). 
+double turret_threshold = 4;    // each turret's guns will be turned off if they are off target by at least this many degrees(*). If you want the guns to be always on, set this to 180 or more. 
+double director_threshold = 4;    // when auto aim is on, the turrets will only lock on to targets within this many degrees to the director(*) 
+int frequency = 60;                // how many times per second this script will run (only applies to turret movement). Set it to 0 or 60+ to have it run constantly (i.e. 60 times/second). 
+int lists_size = 10;            // how many instances of speed and acceleration are averaged to get the current speed and acceleration. 60 = 1 second. 
+int lists_size_vanilla = 120;    // same as lists_size, but only for vanilla tracking. 60 = latest 1 second tracked. 
+bool lock_director = true;        // if true, the script will lock the director's rotors if the director isn't being controlled. This is to prevent it from swinging around while you're turning the ship from another cockpit. 
+bool moving_ship = true;        // if true, the script will account for your own ship's movement when aiming the turrets. Note that rotating the ship may temporarily reduce the turrets' accuracy if they're far away from the ship's center of mass. 
+ 
+ 
+// (*) This is both to the right/left and up/down, so the total angle is double this number. 
+ 
+ 
+ 
+//***********************************// 
+//******* end of settings ********// 
+//******* ignore all below ******// 
+//**********************************// 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+// parsing the sensor name 
+string sensorBaseName = "[radarg"; // not a typo 
+System.Text.RegularExpressions.Regex rxVector = new System.Text.RegularExpressions.Regex( 
+    @"\<([+-]?[0-9]+(?:\.[0-9]*)?),([+-]?[0-9]+(?:\.[0-9]*)?),([+-]?[0-9]+(?:\.[0-9]*)?)\>"); 
+ 
+int time_counter = 0; 
+int counter = 0; 
+int game_rate = 60; // how many times the game updates (not the framerate). Keep at 60 for target tracking to work properly. 
+int starting_directors = 0; 
+int directors_found = 0; 
+int current_director = 0; 
+int total_number_of_turrets = 0; 
+int turrets_in_range = 0; 
+bool found_controlled = false; 
+bool using_override = false; 
+bool empty_space_target = false; 
+bool error = false; 
+ 
+string warnings = ""; 
+string found_groups = ""; 
+ 
+bool firstrun = true; 
+ 
+ 
+IMyTerminalBlock textpanel_override = null; 
+IMyTerminalBlock timerblock_fire = null; 
+ 
+List<IMyTerminalBlock> sensors = new List<IMyTerminalBlock>(); 
+List<IMyTerminalBlock> super_sensors = new List<IMyTerminalBlock>(); 
+ 
+ 
+// list of objects detected by all sensors 
+List<Vector3D> targets = new List<Vector3D>(); 
+ 
+Vector3D targetposition = new Vector3D(0,0,0); 
+Vector3D speed = new Vector3D(0,0,0); 
+Vector3D acceleration = new Vector3D(0,0,0); 
+ 
+Vector3D platformposition = new Vector3D(0,0,0); // the position of the grid with all the turrets 
+Vector3D platform_speed = new Vector3D(0,0,0); // the speed of the platform where the turrets are placed 
+ 
+List<Vector3D> speeds = new List<Vector3D>(); // list of the latest speeds recorded 
+List<Vector3D> accelerations = new List<Vector3D>(); // list of the latest accelerations recorded 
+ 
+Vector3D center_position = new Vector3D(0,0,0);        // location of the director 
+Vector3D forward_position = new Vector3D(0,0,0);    // front of the director 
+Vector3D up_position = new Vector3D(0,0,0);            // above the director 
+ 
+Dictionary<string, int> turret_group_counts = new Dictionary<string, int>(); // list of turret groups and their starting number of turrets. Each group is counted once and then checked every 10 seconds. 
+ 
+ 
+ 
+void Main() 
+{ 
+     
+    if(firstrun) 
+    { 
+        starting_directors = count_directors(); 
+        textpanel_override = getblock_nullable(panel_override); 
+        timerblock_fire = getblock_nullable(name_fire_all); 
+        GridTerminalSystem.GetBlocksOfType<IMySensorBlock>(sensors, x => x.CustomName.Contains(sensorBaseName)); 
+        GridTerminalSystem.GetBlocksOfType<IMySensorBlock>(super_sensors, x => x.CustomName.Contains(name_super_sensor)); 
+        firstrun=false; 
+    } 
+     
+    warnings = ""; // clear warnings 
+    error = false; // reset error flag 
+    using_override = false; // reset override flag 
+    empty_space_target = false; 
+    directors_found = 0; // reset the number of directors 
+    turrets_in_range = 0; // reset the number of turrets in range 
+     
+    time_counter++; // add 1/60th of a second (16.7 milliseconds) 
+    counter++; 
+     
+    // if over 60, loop back to 1 
+    if(time_counter>game_rate) 
+        time_counter=1; 
+     
+    // make sure that 60 (the game_rate) can be divided by the frequency 
+    if(frequency<=0 || frequency>game_rate) 
+        frequency=game_rate; 
+     
+    read_convergence(); 
+     
+    // look through all the directors and choose which to use (setting the three orientation positions) 
+    if(time_counter%(game_rate/frequency)==0 && no_director==false) 
+        update_director_positions(starting_directors); 
+ 
+    // for debugging 
+    write_to_panel("Text panel center", center_position, "Center"); 
+    write_to_panel("Text panel forward", forward_position, "Forward"); 
+    write_to_panel("Text panel up", up_position, "Up"); 
+     
+    // update all the targets according to the sensors 
+    get_targets(); 
+     
+     
+    // if there's an override panel that's turned on (and the script is set to read from it), use those coordinates 
+    if(write_override_info==false && textpanel_override!=null && (textpanel_override as IMyFunctionalBlock).Enabled) 
+    { 
+        Vector3D newposition = parse_override(textpanel_override as IMyTextPanel); 
+        using_override = true; 
+         
+        if(check_block_toggle(name_autolead, default_autolead)) 
+        { 
+            Vector3D newspeed = get_speed_or_acceleration(targetposition, newposition); 
+            newspeed = update_speeds_or_accelerations(speeds, newspeed); // adds this speed to the list of speeds and returns the average speed 
+            Vector3D newacceleration = get_speed_or_acceleration(speed, newspeed); 
+            acceleration = update_speeds_or_accelerations(accelerations, newacceleration); // adds this acceleration to the list of accelerations and returns the average acceleration 
+            speed = newspeed; 
+        } 
+        else 
+            reset_target(); 
+         
+        targetposition = newposition; 
+    } 
+     
+     
+    // only used for tracking without RadarG sensors. Tracks the director movement. Requires manual convergence update. 
+    else if(vanilla_tracking) 
+    { 
+        lists_size = lists_size_vanilla; // since the director is more shaky, change the number of positions registered (more = smoother) 
+         
+        Vector3D newposition = extend(center_position, center_position, forward_position, defaultconvergence); // get the position in front of the director (defaultconvergence is manually supplied) 
+         
+        // if Auto Aim is on, lead according to its movement 
+        if(check_block_toggle(name_autolead, default_autolead)) 
+        { 
+            Vector3D newspeed = get_speed_or_acceleration(targetposition, newposition); 
+            newspeed = update_speeds_or_accelerations(speeds, newspeed); // adds this speed to the list of speeds and returns the average speed 
+            Vector3D newacceleration = get_speed_or_acceleration(speed, newspeed); 
+            acceleration = update_speeds_or_accelerations(accelerations, newacceleration); // adds this acceleration to the list of accelerations and returns the average acceleration 
+            speed = newspeed; 
+        } 
+         
+        else 
+            reset_target(); 
+         
+        targetposition = newposition; 
+    } 
+     
+     
+    // if there are no targets, aim in front of the director 
+    else if(targets.Count<1) 
+    { 
+        if(no_director) 
+            targetposition = new Vector3D(0,0,0); // stop all turrets 
+        else 
+        { 
+            reset_target(); 
+            empty_space_target = true; 
+            targetposition = extend(center_position, center_position, forward_position, defaultconvergence); 
+        } 
+    } 
+ 
+    // if there's at least one target 
+    else 
+    { 
+        Vector3D newposition = new Vector3D(0,0,0); 
+         
+        // either aim at the closest target, if Auto Target is on 
+        if( (check_block_toggle(name_autotarget, default_autotarget)==true) || no_director==true ) 
+        { 
+            newposition = get_closest_target(); 
+             
+            // update the target's speed and acceleration (for leading), unless lead is disabled 
+            if(check_block_toggle(name_autolead, default_autolead)) 
+            { 
+                Vector3D newspeed = get_speed_or_acceleration(targetposition, newposition); 
+                newspeed = update_speeds_or_accelerations(speeds, newspeed); // adds this speed to the list of speeds and returns the average speed 
+                Vector3D newacceleration = get_speed_or_acceleration(speed, newspeed); 
+                acceleration = update_speeds_or_accelerations(accelerations, newacceleration); // adds this acceleration to the list of accelerations and returns the average acceleration 
+                speed = newspeed; 
+            } 
+            else 
+                reset_target(); 
+             
+            targetposition = newposition; 
+        } 
+     
+        // or aim at the frontmost target (if auto aim is off, aim at the right distance in front of the director) 
+        else 
+        { 
+            newposition = gettargetposition(); 
+             
+            if(newposition == new Vector3D(0,0,0)) // if no front target was found 
+            { 
+                empty_space_target = true; 
+                targetposition = extend(center_position, center_position, forward_position, defaultconvergence); // aim directly in front of the director 
+            } 
+             
+            else // if there's a front target 
+            { 
+                if(check_block_toggle(name_autolead, default_autolead)) // update the target's speed and acceleration (for leading), unless lead is disabled 
+                { 
+                    Vector3D newspeed = get_speed_or_acceleration(targetposition, newposition); 
+                    newspeed = update_speeds_or_accelerations(speeds, newspeed); // adds this speed to the list of speeds and returns the average speed 
+                    Vector3D newacceleration = get_speed_or_acceleration(speed, newspeed); 
+                    acceleration = update_speeds_or_accelerations(accelerations, newacceleration); // adds this acceleration to the list of accelerations and returns the average acceleration 
+                    speed = newspeed; 
+                } 
+                else 
+                    reset_target(); 
+ 
+                targetposition = newposition; 
+            } 
+        } 
+    } 
+     
+     
+//    write_to_panel(panel_position, targetposition, "Position"); 
+//    write_to_panel(panel_speed, speed, "Speed"); 
+//    write_to_panel(panel_acceleration, acceleration, "Acceleration"); 
+//    write_override(panel_override_write, targetposition, speed, acceleration); 
+ 
+    // write the coordinates to the override text panel 
+    if(write_override_info) 
+        write_override(panel_override, targetposition); 
+     
+    // update the platform speed 
+    if(moving_ship) 
+    { 
+        Vector3D newplatformposition = new Vector3D(0,0,0); 
+         
+        IMyCubeBlock this_pb = Me as IMyCubeBlock; 
+ 
+        IMyCubeGrid ship = this_pb.CubeGrid; 
+        newplatformposition = ship.GetPosition(); // gets the pivot point of this ship 
+     
+        platform_speed = get_speed_or_acceleration(platformposition, newplatformposition); 
+        platformposition = newplatformposition; 
+        write_to_panel(panel_your_ship_speed, platform_speed, "Your speed"); 
+    } 
+     
+    total_number_of_turrets=0; 
+     
+//    acceleration *= 1.16; // increase acceleration by 16% to make up for the smoothing 
+     
+    // read the turret groups from the text panel and aim them at the target 
+    if(time_counter%(game_rate/frequency)==0) 
+        parse_turret_groups(targetposition); 
+     
+    // display warnings on missing blocks 
+    write_warning(warnings); 
+     
+    // list all the targets found 
+    write_targets(); 
+     
+    // display info on the script status 
+    write_status(); 
+} 
+ 
+ 
+ 
+// read the turret groups from a text panel 
+// format for each rotor turret group:    turretid, shellspeed, range, speed_yaw, speed_pitch 
+// format for each AI turret group:        turretid, shellspeed, range 
+// example: A, 1700, 4500, 4, 4 
+ 
+void parse_turret_groups(Vector3D target) 
+{ 
+    found_groups = ""; 
+     
+    List<IMyTerminalBlock> panels = new List<IMyTerminalBlock>(); 
+    GridTerminalSystem.SearchBlocksOfName(panel_turret_groups, panels); 
+     
+    if(panels.Count<1) 
+    { 
+        Echo("Error: turret group text panel not found.\n"); 
+        error=true; 
+    } 
+     
+    else 
+    for(int i=0; i<panels.Count; i++) 
+    if((panels[i] as IMyFunctionalBlock).Enabled) 
+    { 
+        string text = (panels[i] as IMyTextPanel).GetPublicText(); 
+         
+        if(text=="") 
+        { 
+            warnings += "No turret groups found on the GFCS text panel's public text. Name of panel: '"+panels[i].CustomName+"'\n"; 
+            return; 
+        } 
+         
+        Vector3D newtarget = new Vector3D(0,0,0); 
+         
+        // if auto aim is on, aim at the center of the target 
+        if(check_block_toggle(name_autoaim, default_autoaim) || check_block_toggle(name_autotarget, default_autotarget)) 
+            newtarget = target; 
+         
+        // if auto aim is off, aim straight in front of the director 
+        else 
+            newtarget = extend(center_position, center_position, forward_position, Vector3D.Distance(center_position, target)); 
+         
+        string[] lines = text.Split(new [] {'\r', '\n'}); // separate each line of the panel text 
+         
+        for(int j=0; j<lines.Length; j++) 
+        { 
+             
+            if(lines[j].Contains(",")) // if the line has at least one comma 
+            { 
+             
+                string[] turretgroup = lines[j].Split(','); 
+                 
+                // check if there are at least 3 elements 
+                if(turretgroup.Length<3) 
+                { 
+                    Echo("Error: turret group panel formatted incorrectly (line "+(j+1).ToString()+").\n"); 
+                    error=true; 
+                    return; 
+                } 
+                 
+                string name = turretgroup[0]; 
+                 
+                string[] velocities = turretgroup[1].Split('/'); // split initialspeed/finalspeed/shellacceleration 
+                 
+                double shellspeed = string_to_double(velocities[0]); 
+                 
+                // check if there's also info on final speed and shell acceleration 
+                double finalspeed = 0; 
+                double shellacceleration = 0; 
+                if(velocities.Length>2) 
+                { 
+                    finalspeed = string_to_double(velocities[1]); 
+                    shellacceleration = string_to_double(velocities[2]); 
+                } 
+                 
+                double range = string_to_double(turretgroup[2]); 
+                 
+                // if the line stops at "range", treat this group as an AI turret group 
+                if(turretgroup.Length==3) 
+                    aim_ai_turret(newtarget, name, shellspeed, finalspeed, shellacceleration, range); 
+                 
+                // otherwise, treat this group as a rotor turret group 
+                else 
+                { 
+                    // check if there are at least 5 elements 
+                    if(turretgroup.Length<5) 
+                    { 
+                        Echo("Error: turret group panel formatted incorrectly (line "+(j+1).ToString()+").\n"); 
+                        error=true; 
+                        return; 
+                    } 
+                     
+                    double yaw = string_to_double(turretgroup[3]); 
+                    double pitch = string_to_double(turretgroup[4]); 
+                 
+                    turret_group(newtarget, name, shellspeed, finalspeed, shellacceleration, range, yaw, pitch); 
+                } 
+            } 
+        } 
+    } 
+} 
+ 
+ 
+ 
+// parses the numbers for each turret group 
+ 
+double string_to_double(string text) 
+{ 
+    if(text=="") 
+        return 0; 
+ 
+    return double.Parse(text, new System.Globalization.CultureInfo("en-US")); // only use the point instead of the comma as the decimal mark 
+} 
+ 
+ 
+ 
+// count how many turrets there are in a group, and have them track the target 
+ 
+void turret_group(Vector3D target, string turretid, double shellspeed, double finalspeed, double shellacceleration, double range, double speed_yaw, double speed_pitch) 
+{ 
+    int number_of_turrets = 0; 
+     
+    int value; 
+    if(turret_group_counts.TryGetValue(turretid, out value)) // check if there's already the number of turrets stored for this turret group 
+    { 
+        number_of_turrets = value; 
+         
+        // every ten seconds, check again if any new turret was added 
+        if(counter%600==0) 
+        { 
+            counter=0; 
+            int count = count_turrets(turretid); // count the turrets again 
+            if(count>value) 
+            { 
+                number_of_turrets = count; // update the local turret count 
+                turret_group_counts[turretid] = count; // update the dictionary 
+            } 
+        } 
+    } 
+         
+    else // only happens on the first run 
+    { 
+        number_of_turrets = count_turrets(turretid); 
+        turret_group_counts.Add(turretid, number_of_turrets); 
+    } 
+     
+    if(number_of_turrets==1) 
+        found_groups += "Turret group "+turretid+": 1  turret\n"; 
+    else 
+        found_groups += "Turret group "+turretid+": "+number_of_turrets.ToString()+" turrets\n"; 
+ 
+    // aim the turrets at the target 
+ 
+    if(number_of_turrets==1) 
+    { 
+        List<IMyTerminalBlock> blocks = new List<IMyTerminalBlock>(); 
+        GridTerminalSystem.SearchBlocksOfName(turretid+"1", blocks); 
+         
+        if(blocks.Count>0) 
+            aim_rotor_turret(target, turretid+"1", shellspeed, finalspeed, shellacceleration, range, speed_yaw, speed_pitch); 
+        else 
+            aim_rotor_turret(target, turretid, shellspeed, finalspeed, shellacceleration, range, speed_yaw, speed_pitch); 
+    } 
+ 
+    else     
+        for(int i=0; i<number_of_turrets; i++) 
+            aim_rotor_turret(target, turretid+(i+1).ToString(), shellspeed, finalspeed, shellacceleration, range, speed_yaw, speed_pitch); 
+} 
+ 
+ 
+ 
+// look for a block used as a toggle 
+// if it's on, return true 
+// if it's off, return false 
+// if there's no block, return the default state 
+ 
+bool check_block_toggle(string name, bool defaultstate) 
+{ 
+    List<IMyTerminalBlock> toggles = new List<IMyTerminalBlock>(); 
+    GridTerminalSystem.SearchBlocksOfName(name, toggles); 
+     
+    if(toggles.Count<1) 
+        return defaultstate; 
+     
+    if((toggles[0] as IMyFunctionalBlock).Enabled) 
+        return true; 
+     
+    if((toggles[0] as IMyFunctionalBlock).Enabled==false) 
+        return false; 
+     
+    return defaultstate; // control should never reach this 
+} 
+ 
+ 
+ 
+// checks if the fire toggle is on or off 
+ 
+bool check_firetoggle() 
+{ 
+    if(timerblock_fire==null) 
+        return false; 
+     
+    if((timerblock_fire as IMyFunctionalBlock).Enabled) 
+        return true; 
+     
+    return false; 
+} 
+ 
+ 
+ 
+// looks through all the available targets and picks the one that's most in front of the director 
+ 
+Vector3D gettargetposition() 
+{     
+    double best_bearing = 0; 
+    Vector3D best_target = new Vector3D(0,0,0); 
+     
+    double pitch = 0; 
+    double yaw = 0; 
+     
+    for(int i=0; i<targets.Count; i++) 
+    { 
+        pitch=0; 
+        yaw=0; 
+         
+        GetDirectionTo(targets[i], center_position, forward_position, up_position, ref pitch, ref yaw); 
+ 
+        pitch = Math.Abs(pitch); 
+        yaw = Math.Abs(yaw);         
+         
+        // find the target with the lowest pitch+yaw 
+        if(pitch<director_threshold && yaw<director_threshold && (pitch+yaw<best_bearing || best_bearing==0)) 
+        { 
+            best_bearing = pitch+yaw; // update the best bearing 
+            best_target = targets[i]; // update the best target 
+        } 
+    } 
+     
+    // if a target was found 
+    if(best_target != new Vector3D(0,0,0)) 
+        return best_target; 
+     
+    // if no target was found 
+    reset_target(); 
+//    targets.Clear(); 
+    return new Vector3D(0,0,0); 
+} 
+ 
+ 
+ 
+// finds the closest target 
+// if there are no targets, returns (0,0,0) 
+ 
+Vector3D get_closest_target() 
+{ 
+     
+    if(targets.Count<1) 
+    { 
+        reset_target(); 
+        return new Vector3D(0,0,0); 
+    } 
+     
+    double distance = Vector3D.Distance(center_position, targets[0]); 
+    int n = 0; 
+     
+    for(int i=1; i<targets.Count; i++) 
+    { 
+        double current_distance = Vector3D.Distance(center_position, targets[i]); 
+        if(current_distance<distance) 
+        { 
+            distance = current_distance; 
+            n = i; 
+        } 
+    } 
+     
+    return targets[n]; 
+} 
+ 
+ 
+ 
+// updates the list of targets 
+ 
+void get_targets() 
+{ 
+    targets.Clear(); 
+     
+    // check for any new sensors 
+/*    GridTerminalSystem.GetBlocksOfType<IMySensorBlock>(local_sensors, x => x.CustomName.Contains(sensorBaseName)); 
+    GridTerminalSystem.GetBlocksOfType<IMySensorBlock>(local_super_sensors, x => x.CustomName.Contains(name_super_sensor)); 
+     
+    if(local_sensors.Count > sensors.Count) 
+        sensors = local_sensors; 
+    if(local_super_sensors.Count > super_sensors.Count) 
+        super_sensors = local_super_sensors; 
+*/ 
+ 
+    // look through all the sensors 
+    for(int i=0; i<sensors.Count; i++) 
+    { 
+        var match = rxVector.Match(sensors[i].CustomName); 
+         
+        // if a target is found 
+        if(match.Success) 
+        { 
+            float x = Single.Parse( match.Groups[1].Value ); 
+            float y = Single.Parse( match.Groups[2].Value ); 
+            float z = Single.Parse( match.Groups[3].Value ); 
+             
+            Vector3D targetposition = new Vector3D(x, y, z); 
+             
+            // add it to the list of targets 
+            targets.Add(targetposition); 
+        } 
+    } 
+     
+    // add all super sensor targets 
+    for(int i=0; i<super_sensors.Count; i++) 
+    { 
+        IMySensorBlock sensor = super_sensors[i] as IMySensorBlock; 
+        if(sensor.LastDetectedEntity!=null) 
+            targets.Add(sensor.LastDetectedEntity.GetPosition()); 
+    } 
+} 
+ 
+ 
+ 
+// tell a turret to track a target using these settings: 
+ 
+// turretid:    the turret's name identifier (like "A1", "D4", "F7") 
+// shellspeed:    the initial speed of the shells fired by the turret's guns 
+// finalspeed:    the final speed of the shells fired by the turret's guns 
+// shellacc.:    the acceleration of the shells 
+// range:        the range of the turret's guns 
+// speed_yaw:    the velocity of the horizontal turret rotor 
+// speed_pitch:    the velocity of the vertical turret rotor 
+ 
+void aim_rotor_turret(Vector3D target, string turretid, double shellspeed, double finalspeed, double shellacceleration, double range, double speed_yaw, double speed_pitch) 
+{ 
+ 
+    Vector3D turret_center = new Vector3D(0,0,0);    // center 
+    Vector3D turret_forward = new Vector3D(0,0,0);    // forward 
+    Vector3D turret_up = new Vector3D(0,0,0);        // up 
+     
+    // look for a remote to get the turret orientation 
+    IMyTerminalBlock turret_remote = get_turret_remote(turretid) as IMyTerminalBlock; 
+     
+    if(turret_remote!=null) 
+    { 
+        turret_center = turret_remote.GetPosition(); 
+        turret_forward = get_block_forward_position(turret_remote, 1.0); 
+        turret_up = get_block_up_position(turret_remote, 1.0); 
+    } 
+     
+    // if there's no remote, look for the three orientation blocks 
+    else 
+    { 
+        List<IMyTerminalBlock> blocks = new List<IMyTerminalBlock>(); 
+        GridTerminalSystem.SearchBlocksOfName(("Turret "+turretid), blocks); 
+     
+        for(int i=0; i<blocks.Count; i++) 
+        { 
+            if(blocks[i].CustomName.Contains(turretid) && blocks[i].CustomName.Contains("Center")) 
+                turret_center = blocks[i].GetPosition(); 
+            else if(blocks[i].CustomName.Contains(turretid) && blocks[i].CustomName.Contains("Forward")) 
+                turret_forward = blocks[i].GetPosition(); 
+            else if(blocks[i].CustomName.Contains(turretid) && blocks[i].CustomName.Contains("Up")) 
+                turret_up = blocks[i].GetPosition(); 
+        } 
+         
+        if(turret_center==new Vector3D(0,0,0) || turret_forward==new Vector3D(0,0,0) || turret_up==new Vector3D(0,0,0)) 
+        { 
+            warnings = warnings + "Turret "+turretid+": missing 'Turret "+turretid+" Remote Control'.\n"; 
+            return; 
+        } 
+    } 
+     
+    // display warnings if there's no RotorX or RotorY 
+     
+    List<IMyTerminalBlock> rotors_x = new List<IMyTerminalBlock>(); 
+    GridTerminalSystem.SearchBlocksOfName("Turret "+turretid+" RotorX", rotors_x); 
+     
+    if(rotors_x.Count<1) 
+        warnings = warnings + "Turret "+turretid+": missing 'Turret "+turretid+" RotorX'.\n"; 
+ 
+    List<IMyTerminalBlock> rotors_y = new List<IMyTerminalBlock>(); 
+    GridTerminalSystem.SearchBlocksOfName("Turret "+turretid+" RotorY", rotors_y); 
+     
+    if(rotors_y.Count<1) 
+        warnings = warnings + "Turret "+turretid+": missing 'Turret "+turretid+" RotorY'.\n"; 
+     
+    // add this turret to the number of turrets 
+     
+    if(rotors_x.Count>1) 
+        total_number_of_turrets += rotors_x.Count; 
+    else 
+        total_number_of_turrets++; 
+     
+    // don't display warnings for missing pistons 
+     
+    List<IMyTerminalBlock> pistons_x = new List<IMyTerminalBlock>(); 
+    GridTerminalSystem.SearchBlocksOfName("Turret "+turretid+" PistonX", pistons_x); 
+     
+    List<IMyTerminalBlock> pistons_y = new List<IMyTerminalBlock>(); 
+    GridTerminalSystem.SearchBlocksOfName("Turret "+turretid+" PistonY", pistons_y); 
+     
+    // look for all of the turret's guns 
+    List<IMyTerminalBlock> guns = new List<IMyTerminalBlock>(); 
+    GridTerminalSystem.SearchBlocksOfName(("Turret " + turretid + " Gun"), guns); 
+     
+    // look for all of the turret's timers 
+    List<IMyTerminalBlock> timers = new List<IMyTerminalBlock>(); 
+    GridTerminalSystem.GetBlocksOfType<IMyTimerBlock>(timers, x => x.CustomName.Contains("Turret "+turretid) && x.CustomName.Contains("Timer")); 
+     
+    // idle the turrets if idle is on, or if there's no target while auto target is on 
+    if(check_block_toggle(name_idle, false) || ((check_block_toggle(name_autotarget, default_autotarget) || no_director==true) && targets.Count<1 && idle_if_no_targets==true)) 
+    { 
+        // throw new Exception(targets.Count.ToString()); 
+        for(int i=0; i<rotors_x.Count; i++) 
+            idle_rotor(rotors_x[i] as IMyMotorStator, speed_yaw); 
+         
+        for(int i=0; i<rotors_y.Count; i++) 
+            idle_rotor(rotors_y[i] as IMyMotorStator, speed_pitch); 
+         
+        for(int i=0; i<pistons_x.Count; i++) 
+            idle_piston(pistons_x[i] as IMyPistonBase, speed_yaw); 
+         
+        for(int i=0; i<pistons_y.Count; i++) 
+            idle_piston(pistons_y[i] as IMyPistonBase, speed_pitch); 
+ 
+        for(int i=0; i<guns.Count; i++) 
+            guns[i].ApplyAction("OnOff_Off"); 
+         
+        for(int i=0; i<timers.Count; i++) 
+            guns[i].ApplyAction("OnOff_Off"); 
+         
+        return; 
+    } 
+     
+    // if there is no target and no director, stop all rotors and pistons 
+     
+    else if(target == new Vector3D(0,0,0) || (targets.Count<1 && no_director==true)) 
+    { 
+        for(int i=0; i<rotors_x.Count; i++) 
+            rotors_x[i].SetValueFloat("Velocity", 0); 
+        for(int i=0; i<rotors_y.Count; i++) 
+            rotors_y[i].SetValueFloat("Velocity", 0); 
+        for(int i=0; i<pistons_x.Count; i++) 
+            pistons_x[i].SetValueFloat("Velocity", 0); 
+        for(int i=0; i<pistons_y.Count; i++) 
+            pistons_y[i].SetValueFloat("Velocity", 0); 
+         
+        for(int i=0; i<timers.Count; i++) 
+            guns[i].ApplyAction("OnOff_Off"); 
+         
+        return; 
+    } 
+     
+    // predict the target's future position 
+     
+    Vector3D predictedtarget = target + speed + acceleration - platform_speed; 
+    double distance = Vector3D.Distance(turret_forward, predictedtarget); 
+    double traveltime = distance/shellspeed; 
+     
+    // if the projectile accelerates 
+    if(finalspeed!=0 && shellacceleration!=0) 
+        traveltime = calculate_time_with_acceleration(distance, shellspeed, finalspeed, shellacceleration); 
+ 
+    Vector3D lead = target + ((speed+acceleration-platform_speed) * traveltime); 
+ 
+    // now find the angles to the predicted position 
+     
+    double gyroPitch = 0; 
+    double gyroYaw = 0; 
+     
+    if(guns.Count>0) 
+    { 
+        Vector3D average_position = guns_average_position(guns); 
+        turret_forward = extend(average_position, turret_center, turret_forward, 1.0); 
+        turret_up = extend(average_position, turret_center, turret_up, 1.0); 
+        turret_center = average_position; 
+    } 
+     
+    GetDirectionTo (lead, turret_center, turret_forward, turret_up, ref gyroPitch, ref gyroYaw); 
+ 
+    double speed_y = speed_pitch; 
+    double speed_x = speed_yaw; 
+ 
+    // reduce rotor speed if the angle is within (-cap, cap) 
+    double cap = speed_pitch/2.0; 
+    if(cap<0.5) 
+        cap=0.5; 
+     
+    if(gyroPitch > -cap && gyroPitch < cap) 
+        speed_y = speed_y * gyroPitch / cap; 
+     
+    else if(gyroPitch < 0) 
+        speed_y = -speed_y; 
+     
+    cap = speed_yaw/2.0; 
+    if(cap<0.5) 
+        cap=0.5; 
+     
+    if(gyroYaw > -cap && gyroYaw < cap) 
+        speed_x = speed_x * gyroYaw / cap; 
+     
+    else if(gyroYaw < 0) 
+        speed_x = -speed_x; 
+     
+    // if the turret orientation is constrained, turn the best way so that it doesn't get stuck at max or min angle 
+    if(rotors_x.Count>0) 
+    { 
+        IMyMotorStator rotorx = rotors_x[0] as IMyMotorStator; 
+        if( (rotorx.UpperLimit).ToString()!="Infinity" && (rotorx.LowerLimit).ToString()!="Infinity" ) 
+        { 
+            float max = rotorx.UpperLimit; 
+            float min = rotorx.LowerLimit; 
+            float angle = rotorx.Angle; 
+            double bearing = ToRadians(gyroYaw); // gyroYaw is actually in degrees, so it has to converted into radians 
+             
+            float mid = (max+min)/2.0f; // the angle exactly between the two limits 
+            float angle_from_mid = angle - mid; // how far right or left the turret is from the mid location 
+            double bearing_to_target = angle_from_mid + bearing; // the angle from mid to the target 
+ 
+            // if the bearing is more than 180 degrees (to the left or right) it means that it's better to turn the other way (180 degrees = Pi, since the angle is in radians) 
+            if(bearing_to_target<-Math.PI || bearing_to_target>Math.PI) 
+                speed_x = -speed_x; 
+        } 
+    } 
+ 
+     
+    // set the turning speed of each rotor and piston 
+     
+    // RotorX 
+    for(int i=0; i<rotors_x.Count; i++) 
+    { 
+        if(contains_reverse(rotors_x[i].CustomName)) 
+            rotors_x[i].SetValueFloat("Velocity", (float)-speed_x); 
+         
+        else 
+            rotors_x[i].SetValueFloat("Velocity", (float)speed_x); 
+    } 
+     
+    // RotorY 
+    for(int i=0; i<rotors_y.Count; i++) 
+    { 
+        if(contains_reverse(rotors_y[i].CustomName)) 
+            rotors_y[i].SetValueFloat("Velocity", (float)-speed_y); 
+         
+        else 
+            rotors_y[i].SetValueFloat("Velocity", (float)speed_y); 
+    } 
+     
+    // PistonX 
+    for(int i=0; i<pistons_x.Count; i++) 
+    { 
+        if(contains_reverse(pistons_x[i].CustomName)) 
+            pistons_x[i].SetValueFloat("Velocity", (float)-speed_x/2.0f); 
+         
+        else 
+            pistons_x[i].SetValueFloat("Velocity", (float)speed_x/2.0f); 
+    } 
+     
+    // PistonY 
+    for(int i=0; i<pistons_y.Count; i++) 
+    { 
+        if(contains_reverse(pistons_y[i].CustomName)) 
+            pistons_y[i].SetValueFloat("Velocity", (float)-speed_y/2.0f); 
+         
+        else 
+            pistons_y[i].SetValueFloat("Velocity", (float)speed_y/2.0f); 
+    } 
+ 
+    // check if the target is in range 
+     
+    distance = Vector3D.Distance(turret_center, lead); 
+    if(distance<range) 
+        turrets_in_range++; 
+     
+    // turn off the guns if they are not on target of if there's something in the way     
+ 
+    if(guns.Count<1 && timers.Count<1) 
+        return; 
+     
+    List<IMyTerminalBlock> turret_sensors = new List<IMyTerminalBlock>(); 
+    GridTerminalSystem.GetBlocksOfType<IMySensorBlock>(turret_sensors, (x => x.CustomName.Contains("Turret "+turretid))); 
+     
+    // whether there's something in front of the turret 
+    bool detected = false; 
+     
+    // check if there's anything in front of the turret 
+    for(int i=0; i<turret_sensors.Count; i++) 
+        if((turret_sensors[i] as IMySensorBlock).LastDetectedEntity!=null) 
+            detected = true; 
+     
+    // if the sensors detect anything, turn off the guns 
+    if(detected) 
+    { 
+        for(int i=0; i<guns.Count; i++) 
+            guns[i].ApplyAction("OnOff_Off"); 
+        for(int i=0; i<timers.Count; i++) 
+            timers[i].ApplyAction("OnOff_Off"); 
+    } 
+     
+    // if the sensors don't detect anything 
+    else 
+    { 
+        // the turret is on target if the yaw and pitch are within the threshold and, in the case only_shoot_in_range is on, if the target is in range 
+        bool on_target = within(gyroPitch, turret_threshold)==true && within(gyroYaw, turret_threshold)==true; 
+ 
+        // if the turret is not on target, or if the target is out of range, turn off the guns 
+        if(!on_target) 
+        { 
+            for(int i=0; i<guns.Count; i++) 
+                guns[i].ApplyAction("OnOff_Off"); 
+            for(int i=0; i<timers.Count; i++) 
+                timers[i].ApplyAction("OnOff_Off"); 
+        } 
+         
+        // otherwise, turn the guns on if Auto Fire is on and there's a target (and the turret is on target, and the target is in range), fire the turret's guns. 
+        else if( (check_block_toggle(name_autofire, default_autofire) && empty_space_target==false && on_target==true && (distance<range || only_shoot_in_range==false)) || check_firetoggle()==true ) 
+        { 
+            for(int i=0; i<guns.Count; i++) 
+            { 
+                guns[i].ApplyAction("OnOff_On"); 
+                guns[i].ApplyAction("ShootOnce"); 
+            } 
+             
+            // activate the turret's fire timer(s) 
+            for(int i=0; i<timers.Count; i++) 
+            { 
+                IMyTimerBlock timer = timers[i] as IMyTimerBlock; 
+                timer.ApplyAction("OnOff_On"); 
+                 
+                // start the timer (if it contains "start" and isn't started already) 
+                if(timer.CustomName.Contains("Start") && timer.IsCountingDown==false) 
+                    timer.ApplyAction("Start"); 
+                // or start the timer 
+                else if(timer.CustomName.Contains("Start")==false) 
+                    timer.ApplyAction("TriggerNow"); 
+            } 
+        } 
+         
+        // otherwise, just turn all the guns and timers on 
+        else 
+        { 
+            for(int i=0; i<guns.Count; i++) 
+                guns[i].ApplyAction("OnOff_On"); 
+            for(int i=0; i<timers.Count; i++) 
+                timers[i].ApplyAction("OnOff_On"); 
+        } 
+    } 
+} 
+ 
+ 
+ 
+// gets the forward/up positions (world orientation) of a block 
+// HUGE THANKS to ZerothAngel on Reddit for the code 
+ 
+// get forward position 
+Vector3D get_block_forward_position(IMyTerminalBlock block, double distance) 
+{ 
+    var forwardPos = block.Position + Base6Directions.GetIntVector(block.Orientation.TransformDirection(Base6Directions.Direction.Forward)); 
+    var forward = block.CubeGrid.GridIntegerToWorld(forwardPos); 
+    var forwardVector = Vector3D.Normalize(forward - block.GetPosition()); 
+    return block.GetPosition() + distance * forwardVector; 
+} 
+ 
+// get up position 
+Vector3D get_block_up_position(IMyTerminalBlock block, double distance) 
+{ 
+    var upPos = block.Position + Base6Directions.GetIntVector(block.Orientation.TransformDirection(Base6Directions.Direction.Up)); 
+    var up = block.CubeGrid.GridIntegerToWorld(upPos); 
+    var upVector = Vector3D.Normalize(up - block.GetPosition()); 
+    return block.GetPosition() + distance * upVector; 
+} 
+ 
+ 
+ 
+// same as aim_rotor_turret, but for turret blocks (without rotors) 
+ 
+void aim_ai_turret(Vector3D target, string name, double shellspeed, double finalspeed, double shellacceleration, double range) 
+{ 
+     
+    List<IMyTerminalBlock> turrets = new List<IMyTerminalBlock>(); 
+    GridTerminalSystem.SearchBlocksOfName("Turret "+name, turrets); 
+     
+    if(turrets.Count==1) 
+        found_groups += "Turret group "+name+": 1  turret\n"; 
+    else 
+        found_groups += "Turret group "+name+": "+(turrets.Count).ToString()+" turrets\n"; 
+     
+    for(int i=0; i<turrets.Count; i++) 
+    { 
+         
+        total_number_of_turrets++; 
+         
+        IMyLargeTurretBase turret = turrets[i] as IMyLargeTurretBase; 
+         
+        // turn off the turret if idle is on 
+        if(check_block_toggle(name_idle, false) || (targets.Count<1 && no_director==true)) 
+            turret.ApplyAction("OnOff_Off"); 
+         
+        else 
+        { 
+            turret.ApplyAction("OnOff_On"); 
+         
+            Vector3D predictedtarget = target + speed + acceleration - platform_speed; 
+             
+            double distance = Vector3D.Distance(turrets[i].GetPosition(), predictedtarget); 
+            double traveltime = distance/shellspeed; 
+             
+            // if the projectile accelerates 
+            if(finalspeed!=0 && shellacceleration!=0) 
+                traveltime = calculate_time_with_acceleration(distance, shellspeed, finalspeed, shellacceleration); 
+             
+            Vector3D lead = target + ((speed+acceleration-platform_speed) * traveltime); 
+ 
+            distance = Vector3D.Distance(turret.GetPosition(), lead); 
+             
+            // aim the turret 
+            turret.SetTarget(lead); 
+             
+            // fire only if the target is in range 
+            if(distance<range || only_shoot_in_range==false) 
+            { 
+            //    turret.ApplyAction("OnOff_On"); 
+                turrets_in_range++; 
+                if( (check_block_toggle(name_autofire, default_autofire) && empty_space_target==false && (distance<range || only_shoot_in_range==false)) || check_firetoggle()==true ) // if Auto Fire is on and there's a target (and the target is in range), fire the turret's guns. 
+                    if(time_counter%2==0) // only every other frame, because otherwise the turrets get stuck. Idk why (possibly because of the latest update). 
+                        turret.ApplyAction("ShootOnce"); 
+            } 
+        } 
+    } 
+     
+} 
+ 
+ 
+ 
+// finds the average position of multiple guns 
+ 
+Vector3D guns_average_position(List<IMyTerminalBlock> guns) 
+{ 
+    Vector3D vector_sum = new Vector3D(0,0,0); 
+     
+    for(int i=0; i<guns.Count; i++) 
+        vector_sum += guns[i].GetPosition(); // sum all the positions 
+     
+    return vector_sum / guns.Count; // and divide them by their number (getting the average) 
+} 
+ 
+ 
+ 
+// returns a rotor to zero degrees or the degree between the two angle limits 
+ 
+void idle_rotor(IMyMotorStator rotor, double velocity) 
+{ 
+    double threshold = velocity/2.0; 
+    double angle = (double)rotor.Angle; 
+    angle = angle%Math.PI; 
+    if(angle > Math.PI/2.0) 
+        angle = angle - (2*Math.PI); // angle - 360 degrees 
+     
+    double target_angle = 0; 
+    if( (rotor.UpperLimit).ToString()!="Infinity" && (rotor.LowerLimit).ToString()!="Infinity" ) 
+        target_angle = (rotor.UpperLimit + rotor.LowerLimit)/2.0f; // midpoint between min and max angle 
+     
+    double newvelocity = Math.Abs(velocity * ToDegrees(target_angle-angle) / threshold); 
+    if(target_angle<angle) 
+        newvelocity = -newvelocity; 
+     
+    if(newvelocity>velocity) 
+        newvelocity=velocity; 
+    else if(newvelocity<-velocity) 
+        newvelocity=-velocity; 
+     
+    if(angle>-0.008f && angle<0.008f) // within 1 degree 
+        newvelocity = 0; 
+     
+    rotor.SetValueFloat("Velocity", (float)newvelocity); 
+} 
+ 
+ 
+ 
+// restores a piston to its minimum length 
+ 
+void idle_piston(IMyPistonBase piston, double velocity) 
+{ 
+    piston.SetValueFloat("Velocity", (float)-velocity); 
+} 
+ 
+ 
+ 
+// caps a number to (-cap, cap) 
+ 
+double cap_both_ways(double value, double cap) 
+{ 
+    if(cap>0 && value>cap) 
+        return cap; 
+    else if(cap<0 && value<-cap) 
+        return -cap; 
+    else 
+        return value;     
+} 
+ 
+ 
+ 
+// checks if a name contains "reverse" 
+ 
+bool contains_reverse(string name) 
+{ 
+    if(name.Contains("Reverse") || name.Contains("reverse") | name.Contains("REVERSE")) 
+        return true; 
+     
+    return false; 
+} 
+ 
+ 
+// given the past and present position or speed, it divides their difference by the time to calculate speed or acceleration 
+ 
+Vector3D get_speed_or_acceleration(Vector3D position, Vector3D newposition) 
+{ 
+     
+    if(position==new Vector3D(0,0,0)) 
+        return position; 
+ 
+    // position or speed difference / time 
+    return (newposition-position)/(1.0/(double)frequency); 
+} 
+ 
+ 
+ 
+// updates the list of the latest speeds with the newest detected speed 
+// return the average of the latest speeds 
+// also works for the acceleration 
+ 
+Vector3D update_speeds_or_accelerations(List<Vector3D> speeds_list, Vector3D newspeed) 
+{ 
+     
+    // add the new speed/acceleration to the list (but ignore the first one) 
+    if(speeds_list.Count<1) 
+        speeds_list.Add(new Vector3D(0,0,0)); 
+    else 
+        speeds_list.Add(newspeed); 
+     
+    // keep the size of the list within lists_size 
+    if(speeds_list.Count>lists_size) 
+        speeds_list.RemoveAt(0); 
+     
+    // don't even try and calculate the speed until you have a full list of speeds available 
+    if(speeds_list.Count<lists_size) 
+        return new Vector3D(0,0,0); 
+ 
+    // update the average speed/acceleration 
+     
+    Vector3D averagespeed = new Vector3D(0,0,0); 
+     
+    for(int i=0; i<speeds_list.Count; i++) 
+        averagespeed = averagespeed + speeds_list[i]; 
+    averagespeed = averagespeed / speeds_list.Count; 
+     
+    return averagespeed; 
+} 
+ 
+ 
+ 
+// set all lead values to zero 
+ 
+void reset_target() 
+{ 
+    targetposition = new Vector3D(0,0,0); 
+    speed = new Vector3D(0,0,0); 
+    acceleration = new Vector3D(0,0,0); 
+    speeds.Clear(); 
+    accelerations.Clear(); 
+} 
+ 
+ 
+ 
+// finds the spot at a certain distance from "reference", in the same direction as from "a" to "b" 
+Vector3D extend(Vector3D reference, Vector3D a, Vector3D b, double newdistance) 
+{ 
+    if(newdistance==0) 
+        return reference; 
+     
+    Vector3D shift = a-b; 
+    double distance = Vector3D.Distance(a, b); 
+    Vector3D extended = shift * newdistance / distance; 
+     
+    return reference - extended; 
+} 
+ 
+ 
+ 
+// looks for a director and uses it (sets the director's "block" positions). Takes the number of directors 
+ 
+void update_director_positions(int number_of_directors) 
+{ 
+     
+    // local flags 
+    bool directorfound = false; 
+    int first_director_found = 0; 
+     
+    // look through the directors, starting from the last one 
+    for(int i=1; i<=number_of_directors; i++) 
+    { 
+        Vector3D center = new Vector3D(0,0,0); 
+        Vector3D forward = new Vector3D(0,0,0); 
+        Vector3D up = new Vector3D(0,0,0); 
+         
+        bool controlled = false; 
+ 
+        IMyLargeTurretBase director_turret = get_single_director(i) as IMyLargeTurretBase; 
+        IMyRemoteControl director_remote = null; 
+         
+        // first look for a single block director 
+        if(director_turret!=null) 
+        { 
+            center = director_turret.GetPosition(); 
+            forward = get_block_forward_position(director_turret, 1.0); 
+            up = get_block_up_position(director_turret, 1.0); 
+             
+            // updates forward and up with the turret's orientation 
+            forward = get_turret_front_position(director_turret, 1, out up); 
+         
+            // shift the turret position up/down according to the value in the name, like <-1> 
+            double adjustment = parse_adjustment(director_turret.CustomName); 
+            center = extend(center, center, up, adjustment); 
+             
+            controlled = director_turret.IsUnderControl; 
+        } 
+         
+        // if there's a turret block director, try again looking for a remote control (rotor director) 
+        else 
+        { 
+            director_remote = getblock_nullable(DIRECTOR_BASE_NAME+i.ToString()+" "+name_director_remote) as IMyRemoteControl; 
+             
+            if(i==1 && director_remote==null) 
+                director_remote = getblock_nullable(DIRECTOR_BASE_NAME+" "+name_director_remote) as IMyRemoteControl; 
+             
+            // if a rotor director was found 
+            if(director_remote!=null) 
+            { 
+                center = director_remote.GetPosition(); 
+                forward = get_block_forward_position(director_remote, 1.0); 
+                up = get_block_up_position(director_remote, 1.0); 
+                 
+                controlled = director_remote.IsUnderControl; 
+                 
+                // lock or unlock the rotor director 
+                if(lock_director) 
+                { 
+                    if(controlled) 
+                        lock_unlock_remote(i.ToString(), false); 
+                    else 
+                        lock_unlock_remote(i.ToString(), true); 
+                     
+                    if(current_director==1 && controlled) 
+                        lock_unlock_remote("", false); 
+                    else if(current_director==1 && controlled==false) 
+                        lock_unlock_remote("", true); 
+                } 
+            } 
+        } 
+         
+        // if a director of either type was found 
+        if(director_turret!=null || director_remote!=null) 
+        { 
+            // if no director has been found yet, use this director for now (these values will be overwritten if another director is found) 
+            if(directors_found==0) 
+            { 
+                first_director_found = i; 
+ 
+                center_position = center; 
+                forward_position = forward; 
+                up_position = up; 
+            } 
+             
+            directors_found++; 
+             
+            // use this director if switch_to_controlled is off, or if switch_to_controlled is on and this is controlled (unless a director has already been found) 
+            if( directorfound==false && ((switch_to_controlled==false) || (switch_to_controlled==true && controlled==true)) ) 
+            { 
+                directorfound=true; 
+                current_director=i; 
+                 
+                // update global variables since a director has been found 
+                center_position = center; 
+                forward_position = forward; 
+                up_position = up; 
+            } 
+        } 
+    } 
+     
+    // stop here if a director has been found 
+    if(directors_found>0 && directorfound==false) 
+    { 
+        current_director = first_director_found; 
+        return; 
+    } 
+ 
+    // if no director at all has been found and the script needs a director, display an error 
+    if(directors_found==0 && no_director==false) 
+    { 
+        Echo("Error: no director found.\n"); 
+        error=true; 
+    } 
+} 
+ 
+ 
+ 
+// find a specific turret director block 
+ 
+IMyTerminalBlock get_single_director(int number) 
+{ 
+    List<IMyTerminalBlock> director_turrets = new List<IMyTerminalBlock>(); 
+    GridTerminalSystem.GetBlocksOfType<IMyLargeTurretBase>(director_turrets, x => x.CustomName.StartsWith(DIRECTOR_BASE_NAME)); 
+     
+    for(int i=0; i<director_turrets.Count; i++) 
+        if(director_turrets[i].CustomName.Contains(number.ToString()) || (number==1 && director_turrets[i].CustomName==DIRECTOR_BASE_NAME)) 
+            return director_turrets[i]; 
+     
+    return null; 
+} 
+ 
+ 
+ 
+// look for one of the three director orientation blocks (if it's not found, return null) 
+ 
+IMyTerminalBlock get_director_block(int number, string type) 
+{ 
+    List<IMyTerminalBlock> blocks = new List<IMyTerminalBlock>(); 
+    GridTerminalSystem.SearchBlocksOfName(DIRECTOR_BASE_NAME, blocks); 
+     
+    for(int i=0; i<blocks.Count; i++) 
+        if(blocks[i].CustomName==(DIRECTOR_BASE_NAME+number.ToString()+" "+type) || (number==1 && blocks[i].CustomName==DIRECTOR_BASE_NAME+" "+type)) 
+            return blocks[i]; 
+     
+    return null; 
+} 
+ 
+ 
+ 
+// finds the front position (orientation) of a turret, and also outputs the adjusted up position 
+ 
+Vector3D get_turret_front_position(IMyLargeTurretBase turret, double distance, out Vector3D up_position) 
+{ 
+    float azimuth = turret.Azimuth; 
+    float elevation = turret.Elevation; 
+     
+    Vector3D direction = new Vector3D(0,0,0); 
+     
+    // x = right 
+    // y = up 
+    // -z = forward 
+    Vector3D.CreateFromAzimuthAndElevation(azimuth, elevation, out direction); 
+     
+    Vector3D turret_center = turret.GetPosition(); 
+    Vector3D turret_forward = get_block_forward_position(turret, 1); 
+    Vector3D turret_up = get_block_up_position(turret, 1); 
+    Vector3D turret_right = get_right(turret_center, turret_forward, turret_up); 
+     
+    double shift_forward = -direction.GetDim(2) * distance; // -z 
+    double shift_up = direction.GetDim(1) * distance; // y 
+    double shift_right = direction.GetDim(0) * distance; // x 
+     
+    Vector3D front = extend(turret_center, turret_center, turret_forward, shift_forward); 
+    front = extend(front, turret_center, turret_right, shift_right); 
+    front = extend(front, turret_center, turret_up, shift_up); 
+ 
+    Vector3D actual_up = get_turretblock_up(turret_center, turret_center, turret_up, front, elevation); 
+    up_position = actual_up; 
+ 
+    return front; 
+} 
+ 
+ 
+ 
+// finds the spot 1 meter above a turret, tilted according to the turret's orientation 
+Vector3D get_turretblock_up(Vector3D turretposition, Vector3D center, Vector3D up, Vector3D forward, float elevation) 
+{ 
+    Vector3D above_turret = extend(turretposition, center, up, 1); // find the spot 1 meter straight above the turret block (no elevation adjustment) 
+    double opposite_side = Math.Sin(elevation); // find the projection of the above spot onto the oriented gun 
+    return extend(above_turret, forward, turretposition, opposite_side); // now use that distance to shift the above spot 
+} 
+ 
+ 
+ 
+// gets the value that's in a block's name inside "<>" 
+double parse_adjustment(string name) 
+{ 
+    if(name.Contains("<") && name.Contains(">")) 
+    { 
+        string text_in_parentheses = name.Split('<', '>')[1]; 
+         
+        if(text_in_parentheses!="") 
+            return Double.Parse(text_in_parentheses); 
+    } 
+     
+    return 0; 
+} 
+ 
+ 
+ 
+// calculates the time for a shell to travel a certain distance while accelerating (even if it the time accelerating doesn't match that distance) 
+ 
+double calculate_time_with_acceleration(double distance, double shellspeed, double finalspeed, double shellacceleration) 
+{ 
+    double time_accelerating = (finalspeed-shellspeed)/shellacceleration; // how long it takes for the projectile to reach the final speed 
+    double distance_while_accelerating = shellspeed*time_accelerating + (0.5 * shellacceleration * (time_accelerating * time_accelerating)); // distance traveled until the projectile has reached the final speed 
+     
+    double distance_left = distance - distance_while_accelerating; // this will be positive if there's still distance left to travel; it will be negative if the projectile would reach the target while still accelerating 
+     
+    // if there's still distance to travel, calculate the additional time and add it 
+    if(distance_left>=0) 
+    { 
+        double time_left = distance_left / finalspeed; 
+        return time_accelerating + time_left; 
+    } 
+     
+    // otherwise, just calculate the time until the distance is reached, using the quadratic equation t^2*1/2*a + t*v - d = 0 
+    // to be honest most of the time this won't be necessary (most projectiles will have reached the final speed far before reaching the target) 
+    else 
+    { 
+        // solving for t:    t = -v +- sqrt( v^2 -4*1/2*a*(-d)) 
+        //    divided by               2 * 1/2 * a 
+        double discriminant = Math.Sqrt(shellspeed*shellspeed -2*shellacceleration*-distance); 
+        double root1 = (-shellspeed + discriminant) / shellacceleration; 
+        double root2 = (-shellspeed - discriminant) / shellacceleration; 
+        return pick_greater(root1, root2); // pick the greatest solution 
+    } 
+} 
+ 
+ 
+ 
+// counts the number of turrets in a group (actually counts the number of center blocks in that group) 
+ 
+int count_turrets(string turretid) 
+{ 
+    List<IMyTerminalBlock> centers = new List<IMyTerminalBlock>(); // center blocks 
+    GridTerminalSystem.SearchBlocksOfName("Turret "+turretid, centers, (x => x.CustomName.Contains("Center"))); 
+     
+    List<IMyTerminalBlock> remotes = new List<IMyTerminalBlock>(); // RotorX blocks 
+    GridTerminalSystem.SearchBlocksOfName("Turret "+turretid, remotes, (x => x.CustomName.Contains("Remote Control"))); 
+     
+    List<IMyTerminalBlock> rotors = new List<IMyTerminalBlock>(); // RotorX blocks 
+    GridTerminalSystem.SearchBlocksOfName("Turret "+turretid, rotors, (x => x.CustomName.Contains("RotorX"))); 
+     
+    int max_count = 0; 
+     
+    if(rotors.Count >= centers.Count + remotes.Count) 
+        max_count = rotors.Count; 
+    else 
+        max_count = centers.Count + remotes.Count; 
+ 
+    int count = 0; 
+     
+    // count the number of remote controls or center blocks for each turret 
+    for(int i=1; i<=max_count; i++) 
+    { 
+        List<IMyTerminalBlock> turret_remotes = new List<IMyTerminalBlock>(); 
+        GridTerminalSystem.SearchBlocksOfName("Turret "+turretid+i.ToString(), turret_remotes, x => x.CustomName.Contains("Remote Control")); 
+         
+        if(turret_remotes.Count>0) 
+            count++; 
+        else 
+        { 
+            List<IMyTerminalBlock> turretcenters = new List<IMyTerminalBlock>(); 
+            GridTerminalSystem.SearchBlocksOfName("Turret "+turretid+i.ToString(), turretcenters, x => x.CustomName.Contains("Center")); 
+             
+            if(turretcenters.Count>0) 
+                count++; 
+        } 
+    } 
+     
+    return count; 
+} 
+ 
+ 
+ 
+// counts the directors (only for the first run) 
+ 
+int count_directors() 
+{ 
+    List<IMyTerminalBlock> director_turrets = new List<IMyTerminalBlock>(); 
+    GridTerminalSystem.GetBlocksOfType<IMyLargeTurretBase>(director_turrets, (x => x.CustomName.Contains(DIRECTOR_BASE_NAME))); 
+ 
+    List<IMyTerminalBlock> director_remotes = new List<IMyTerminalBlock>(); 
+    GridTerminalSystem.GetBlocksOfType<IMyRemoteControl>(director_remotes, (x => x.CustomName.Contains(DIRECTOR_BASE_NAME+" "+name_director_remote))); 
+ 
+    return director_turrets.Count + director_remotes.Count; 
+} 
+ 
+ 
+void GetDirectionTo(Vector3D target, IMyTerminalBlock block, ref double Pitch, ref double Yaw) 
+{ 
+    Vector3D center = block.GetPosition(); 
+    Vector3D forward = get_block_forward_position(block, 1); 
+    Vector3D up = get_block_up_position(block, 1); 
+    GetDirectionTo(target, center, forward, up, ref Pitch, ref Yaw); 
+} 
+ 
+ 
+ 
+// TV:        target position 
+// OV:        origin position 
+// FV:        forward position 
+// UV:        up position 
+// Pitch:    (ref) vertical angle to the target 
+// Yaw:        (ref) horizontal angle to the target 
+ 
+void GetDirectionTo(Vector3D TV, Vector3D OV, Vector3D FV, Vector3D UV, ref double Pitch, ref double Yaw) 
+{ 
+     
+    VRageMath.Vector3D RV = get_right(OV, FV, UV); 
+ 
+    double TVOV = (OV - TV).Length();     //Get magnitudes of vectors. 
+ 
+    double TVFV = (FV - TV).Length(); 
+    double TVUV = (UV - TV).Length(); 
+    double TVRV = (RV - TV).Length(); 
+ 
+    double OVFV = (FV - OV).Length(); 
+    double OVUV = (UV - OV).Length(); 
+    double OVRV = (RV - OV).Length(); 
+ 
+    double ThetaP = Math.Acos((TVUV * TVUV - OVUV * OVUV - TVOV * TVOV) / (-2 * OVUV * TVOV));     //Use law of cosines to determine angles. 
+    double ThetaY = Math.Acos((TVRV * TVRV - OVRV * OVRV - TVOV * TVOV) / (-2 * OVRV * TVOV)); 
+ 
+    double RPitch = 90 - (ThetaP * 180 / Math.PI);     //Convert from radians to degrees. 
+    double RYaw = 90 - (ThetaY * 180 / Math.PI); 
+ 
+    if (TVOV < TVFV) 
+        RPitch = 180 - RPitch;     //Normalize angles to -180 to 180 degrees. 
+     
+    if(RPitch > 180) 
+        RPitch = -1 * (360 - RPitch); 
+ 
+    if (TVOV < TVFV) 
+        RYaw = 180 - RYaw; 
+     
+    if (RYaw > 180) 
+        RYaw = -1 * (360 - RYaw); 
+ 
+    Pitch = RPitch;     //Set Pitch and Yaw outputs. 
+    Yaw = RYaw; 
+} 
+ 
+ 
+ 
+// finds the position to the right of a set of three blocks (center/front/up) 
+ 
+Vector3D get_right(Vector3D center, Vector3D front, Vector3D up) 
+{ 
+    front = front - center; 
+    up = up - center; 
+    return center + Vector3D.Cross(front, up); 
+} 
+ 
+ 
+ 
+// sets the convergence according to what's on the convergence text panel 
+ 
+void read_convergence() 
+{ 
+     
+    List<IMyTerminalBlock> panels = new List<IMyTerminalBlock>(); 
+    GridTerminalSystem.SearchBlocksOfName(panel_convergence, panels); 
+     
+    if(panels.Count<1) 
+        return; 
+     
+    string text = (panels[0] as IMyTextPanel).GetPublicText(); 
+     
+    if(text!="") 
+        defaultconvergence = Double.Parse(text); 
+} 
+ 
+ 
+ 
+// just to pick which root to use from the quadratic equation 
+ 
+double pick_greater(double a, double b) 
+{ 
+    if(a>b) 
+        return a; 
+    return b;     
+} 
+ 
+ 
+ 
+// if the director's remote control is not controlled, lock the director rotors 
+ 
+bool lock_unlock_remote(string id, bool lock_unlock) 
+{     
+    IMyTerminalBlock director_x = getblock_nullable(DIRECTOR_BASE_NAME+id+" "+name_director_rotorx); 
+    IMyTerminalBlock director_y = getblock_nullable(DIRECTOR_BASE_NAME+id+" "+name_director_rotory); 
+ 
+    if(director_x==null || director_y==null) 
+        return false; 
+     
+    // lock all rotors 
+    if(lock_unlock) 
+    { 
+        director_x.ApplyAction("OnOff_On"); 
+        director_y.ApplyAction("OnOff_On"); 
+    } 
+     
+    // unlock all rotors 
+    else 
+    { 
+        director_x.ApplyAction("OnOff_Off"); 
+        director_y.ApplyAction("OnOff_Off"); 
+    } 
+ 
+    return true; 
+} 
+ 
+ 
+ 
+// write a string to a text panel 
+ 
+void write(string name, string text, string header) 
+{ 
+    if(header!="") 
+        text = header+"\n"+text; 
+     
+    write(name, text); 
+} 
+void write(string name, string text) 
+{ 
+    List<IMyTerminalBlock> panels = new List<IMyTerminalBlock>(); 
+    GridTerminalSystem.SearchBlocksOfName(name, panels); 
+     
+    for(int i=0; i<panels.Count; i++) 
+    { 
+        (panels[i] as IMyTextPanel).WritePublicText(text, false); 
+        (panels[i] as IMyTextPanel).ShowPublicTextOnScreen(); 
+    } 
+} 
+ 
+ 
+ 
+// list all targets found on a text panel 
+ 
+void write_targets() 
+{ 
+    List<IMyTerminalBlock> panels = new List<IMyTerminalBlock>(); 
+    GridTerminalSystem.SearchBlocksOfName(panel_targets, panels); 
+     
+    if(panels.Count<1) 
+        return; 
+     
+    string text = "No targets found"; 
+     
+    // add each target with the distance to this programmable block and with the GPS coordinates 
+    if(targets.Count>0) 
+    { 
+        text = "Targets found\n"; 
+        IMyCubeBlock this_pb = Me as IMyCubeBlock; 
+         
+        for(int i=0; i<targets.Count; i++) 
+        { 
+            string distance = Vector3D.Distance(this_pb.GetPosition(), targets[i]).ToString("N0"); 
+            string x = targets[i].GetDim(0).ToString("N0"); 
+            string y = targets[i].GetDim(1).ToString("N0"); 
+            string z = targets[i].GetDim(2).ToString("N0"); 
+            text += "\n"+String.Format("\n#{0}: {1} m\n({2}, {3}, {4})", i+1, distance, x, y, z); 
+        } 
+    } 
+     
+    for(int i=0; i<panels.Count; i++) 
+    { 
+        (panels[i] as IMyTextPanel).WritePublicText(text, false); 
+        (panels[i] as IMyTextPanel).ShowPublicTextOnScreen(); 
+    } 
+} 
+ 
+ 
+ 
+// display position/speed/acceleration on a text panel 
+ 
+void write_to_panel(string name, Vector3D thing, string header) 
+{ 
+     
+    List<IMyTerminalBlock> panels = new List<IMyTerminalBlock>(); 
+    GridTerminalSystem.SearchBlocksOfName(name, panels); 
+     
+    string x = (thing.GetDim(0)).ToString("N1"); 
+    string y = (thing.GetDim(1)).ToString("N1"); 
+    string z = (thing.GetDim(2)).ToString("N1"); 
+ 
+    string length = (thing.Length()).ToString("N1"); 
+     
+    if(header!="") 
+        header = header + "\n"; 
+     
+    string separator = ", "; 
+    string text = header+ x +separator+ y +separator+ z +"\n("+length+")"; 
+ 
+    for(int i=0; i<panels.Count; i++) 
+    { 
+        (panels[i] as IMyTextPanel).WritePublicText(text, false); 
+        (panels[i] as IMyTextPanel).ShowPublicTextOnScreen(); 
+    } 
+} 
+ 
+ 
+ 
+// writes the override info onto a text panel 
+ 
+void write_override(string name, Vector3D position) 
+{ 
+     
+    List<IMyTerminalBlock> panels = new List<IMyTerminalBlock>(); 
+    GridTerminalSystem.SearchBlocksOfName(name, panels); 
+     
+    if(panels.Count<1) 
+        return; 
+     
+    string px = (position.GetDim(0)).ToString()+"\n"; 
+    string py = (position.GetDim(1)).ToString()+"\n"; 
+    string pz = (position.GetDim(2)).ToString(); 
+     
+    string text = px+py+pz; 
+ 
+    for(int i=0; i<panels.Count; i++) 
+    { 
+        (panels[i] as IMyTextPanel).WritePublicText(text, false); 
+        (panels[i] as IMyTextPanel).ShowPublicTextOnScreen(); 
+    } 
+} 
+ 
+ 
+ 
+// display a number (for now only used for debugging) 
+ 
+void write_number(string name, double number, string header) 
+{ 
+    if(header!="") 
+        header = header+"\n"; 
+         
+    List<IMyTerminalBlock> panels = new List<IMyTerminalBlock>(); 
+    GridTerminalSystem.SearchBlocksOfName(name, panels); 
+     
+    string number_string = number.ToString("N3"); 
+     
+    string text = header+number_string; 
+     
+    for(int i=0; i<panels.Count; i++) 
+    { 
+        (panels[i] as IMyTextPanel).WritePublicText(text, false); 
+        (panels[i] as IMyTextPanel).ShowPublicTextOnScreen(); 
+    } 
+} 
+ 
+ 
+ 
+// display the "warnings" string on the text panel for warnings 
+ 
+void write_warning(string text) 
+{ 
+     
+    List<IMyTerminalBlock> panels = new List<IMyTerminalBlock>(); 
+    GridTerminalSystem.SearchBlocksOfName(panel_warnings, panels); 
+     
+    if(text=="") 
+    { 
+        text = total_number_of_turrets.ToString()+" turrets found."; 
+        if(total_number_of_turrets>0) 
+            text = text+"\nAll turrets are operational."; 
+    } 
+     
+    for(int i=0; i<panels.Count; i++) 
+    { 
+        (panels[i] as IMyTextPanel).WritePublicText(text, false); 
+        (panels[i] as IMyTextPanel).ShowPublicTextOnScreen(); 
+    } 
+} 
+ 
+ 
+ 
+// dispays info about the script (whether it's running, # of turrets, toggles, etc) on the status text panel and programmable block 
+ 
+void write_status() 
+{ 
+     
+    List<IMyTerminalBlock> panels = new List<IMyTerminalBlock>(); 
+    GridTerminalSystem.SearchBlocksOfName(panel_status, panels); 
+     
+    if(panels.Count<1) 
+        return; 
+     
+    string running = "GFCS Script:"; 
+    if(time_counter<=30) 
+        running = "GFCS Script: running"; 
+     
+    string sensors_found = "Sensors found: "+(sensors.Count+super_sensors.Count).ToString(); 
+    string targets_found = "Targets detected: "+targets.Count.ToString(); 
+     
+    string turrets = "Turrets currently found: "+total_number_of_turrets.ToString(); 
+    string in_range = "Turrets in range: "+turrets_in_range.ToString(); 
+     
+    string directors = "Directors found: "+directors_found.ToString()+" out of "+starting_directors.ToString(); 
+     
+    string director = "Current director: "+current_director.ToString(); 
+     
+    if(using_override) 
+        director += " (override active)"; 
+     
+    string autolead = "Auto Lead:         off"; 
+    string autotarget = "Auto Target:      off"; 
+    string autoaim = "Auto Aim:          off"; 
+    string autofire = "Auto Fire:          off"; 
+    string idle = "Idle:                   off"; 
+     
+    if(check_block_toggle(name_autolead, default_autolead)) 
+        autolead = "Auto Lead:    on"; 
+    if(check_block_toggle(name_autotarget, default_autotarget)) 
+        autotarget = "Auto Target: on"; 
+    if(check_block_toggle(name_autoaim, default_autoaim)) 
+        autoaim = "Auto Aim:     on"; 
+    if(check_block_toggle(name_autofire, default_autofire)) 
+        autofire = "Auto Fire:     on"; 
+    if(check_block_toggle(name_idle, false)) 
+        idle = "Idle:              on"; 
+     
+    string line = "\n"; 
+    string text =    running+line+line+ 
+                    sensors_found+line+ 
+                    targets_found+line+line+ 
+                    directors+line+ 
+                    director+line+line+ 
+                    turrets+line+ 
+                    in_range+line+line+ 
+                    found_groups+line+ 
+                    autolead+line+ 
+                    autotarget+line+ 
+                    autoaim+line+ 
+                    autofire+line+ 
+                    idle; 
+     
+    for(int i=0; i<panels.Count; i++) 
+    { 
+        (panels[i] as IMyTextPanel).WritePublicText(text, false); 
+        (panels[i] as IMyTextPanel).ShowPublicTextOnScreen(); 
+    } 
+     
+    if(error==false) 
+        Echo(text); 
+} 
+ 
+ 
+ 
+// look for a block, and return null if not found 
+  
+IMyTerminalBlock getblock_nullable(string name) 
+{ 
+    List<IMyTerminalBlock> blocks = new List<IMyTerminalBlock>(); 
+    GridTerminalSystem.SearchBlocksOfName(name, blocks); 
+     
+    for(int i=0; i<blocks.Count; i++) 
+        if(string.Equals(blocks[i].CustomName, name, StringComparison.OrdinalIgnoreCase)) 
+            return blocks[i]; 
+     
+    return null; 
+} 
+ 
+ 
+ 
+// find a turret's remote control block 
+ 
+IMyTerminalBlock get_turret_remote(string turretid) 
+{ 
+    List<IMyTerminalBlock> blocks = new List<IMyTerminalBlock>(); 
+    GridTerminalSystem.SearchBlocksOfName(turretid, blocks, x => x.CustomName.Contains("Remote Control")); 
+     
+    if(blocks.Count>0) 
+        return blocks[0]; 
+     
+    return null; 
+} 
+ 
+ 
+ 
+// reads GPS coordinates from a text panel's public text 
+ 
+Vector3D parse_override(IMyTextPanel panel) 
+{ 
+    string text = panel.GetPublicText(); 
+     
+    string[] lines = text.Split(new [] {'\r', '\n'}); // separate each line of the panel text 
+     
+    if(lines.Length<3) 
+    { 
+        error = true; 
+        Echo("Error: override text panel formatted incorrectly."); 
+        targetposition = new Vector3D(0,0,0); 
+        return new Vector3D(0,0,0); 
+    } 
+     
+    double x = Double.Parse(lines[0]); 
+    double y = Double.Parse(lines[1]); 
+    double z = Double.Parse(lines[2]); 
+ 
+    return new Vector3D(x,y,z); // update the target's position with the override info 
+} 
+ 
+ 
+ 
+// check if a number if within (-X, X) 
+ 
+bool within(double number, double threshold) 
+{ 
+    if(Math.Abs(number)<=threshold) 
+        return true; 
+     
+    return false; 
+} 
+ 
+ 
+ 
+// convert radians to degrees 
+ 
+float ToDegrees(float angle) 
+{ 
+    return (float)(angle * (180.0 / Math.PI)); 
+} 
+double ToDegrees(double angle) 
+{ 
+    return angle * (180.0 / Math.PI); 
+} 
+ 
+ 
+// convert degrees to radians 
+ 
+double ToRadians(double angle) 
+{ 
+   return Math.PI * angle / 180.0; 
+} 

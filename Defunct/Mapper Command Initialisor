@@ -1,0 +1,161 @@
+//Mapper Command Initialisor
+
+
+//for this script to work input the coordinates of the center and radius of the mapping area as follows in the command text : x;y;z;radius
+//note this script ASSUMES RELATIVELY SMALL distances (you basically cannot ask the mapper to map the whole planet nor can you ask it to mapp 1/4 of it)
+//to do that you would have to make several mappers or input the order multiple times...
+//Naming (May change depending on Ship)
+
+const String TXT_NAME = "planetinfo";
+const String TXTTEMP_NAME = "temp";
+const String TXTCOMMAND_NAME = "command";
+
+
+//Dont change anything beyond this point
+
+
+//Initializing variables
+
+IMyTextPanel txt = null;
+Vector3 center=null;
+Vector3 refpoint=null;
+Vector3 refnormal=null;
+
+
+
+
+//Initializing Functions
+
+
+
+
+public void GetInfo(string raw , ref Vector3 center, ref Vector3 refpoint, ref Vector3 refnormal){
+
+//the ref variables HAVE to be introduced beforehand(like say by writing : "Vector3 center=null;"), and will be modified by this code (just a reminder) 
+
+string[] res= raw.Split(';');
+
+//only doing it 3 times, so simpler not to do a loop I think
+
+string[] res0 = res[0].Split(',');
+string[] res1 = res[1].Split(',');
+string[] res2 = res[2].Split(',');
+
+//modify values of references
+
+center=new Vector3(float.Parse(res0[0]),float.Parse(res0[1]),float.Parse(res0[2]));
+refpoint=new Vector3(float.Parse(res1[0]),float.Parse(res1[1]),float.Parse(res1[2]));
+refnormal=new Vector3(float.Parse(res2[0]),float.Parse(res2[1]),float.Parse(res2[2]));
+}
+
+
+
+
+public Vector3 RelativeCoords(Vector3 center, Vector3 refpoint, Vector3 refnormal, Vector3 pos){
+
+	//computing the base point of the perpendicular to the plane passing through the current position 
+
+	k=dotproduct(pos,refnormal)-dotproduct(refpoint,refnormal);
+
+	pos2=pos+k*refnormal;
+
+
+
+	//computing angles now
+
+	Alpha = AngleBetween(pos2+center,pos+center);
+	Beta = AngleBetween(refpoint+center,pos2+center);
+
+
+	//getting height
+
+	heightvec=pos-center;
+	height=heightvec.magnitude;
+
+	Vector3 output = new Vector3 (Alpha, Beta, height) ;
+	
+	return output;
+
+}
+
+//for this function we use a "unit" circle in the plane defined by reformal to determin the closest point to pos in the plane in terms of 2 computable vectors
+// then we add the normal vector times the distance between point and pos
+
+public Vector3 AbsoluteCoords(Vector3 center, Vector3 refpoint, Vector3 refnormal, Vector3 pos){
+
+//getting "unit" length
+unit=pos.Z*Math.Cos(pos.X);
+
+//getting the vector from center to ref point
+a=unit*Normalize(refpoint-center); 
+
+//get perpendicular to vector from center to ref point in plane to constitute the base of said plane
+b=unit*Normalize(Vector3.Cross(refpoint-center,pos));
+
+//getting position of the closest point to pos on the plane through use of the trig circle (if there are issues check the angle between function in C sharp 
+// probably)
+absolutepos2=Math.Sin(pos.Y)*b+Math.Cos(pos.Y)*a;
+
+//find the actual position in absolute 
+absolutepos=absolute2+refnormal*Math.Sin(pos.X)*pos.Z
+
+//IMPORTANT : refnormal is ASSUMED to be normalized (there really is not a reason for it not to be) if not the just type refnormal = Vector3.Normalize(refnormal);
+}
+
+
+
+//MAIN
+//MAIN
+//MAIN
+
+
+void Main(){
+	txt = GridTerminalSystem.GetBlockWithName(TXT_NAME) as IMyTextPanel;
+	cntrl = GridTerminalSystem.GetBlockWithName(CONTROL_NAME) as IMyRemoteControl;
+	command = GridTerminalSystem.GetBlockWithName(TXTCOMMAND_NAME) as IMyTextPanel;
+
+
+
+	//getting the planet info
+
+	raw=txt.GetPublicText();
+	GetInfo(raw,center,refpoint,refnormal);
+
+
+	//translating command
+
+	raw=command.GetPublicText()
+	string[] res= raw.Split(';');
+	middle=new Vector3(float.Parse("res[0]"),float.Parse("res[1]"),float.Parse("res[2]"));
+	radius=float.Parse("res[3]");
+	numberofsteps=float.Parse("res[4]");
+
+	//determining current altitude
+
+	altitudevector=middle-center;
+	altitude=altitudevector.Magnitude;
+
+	//determins now to what angle the radius is equivalent to at current altitude
+	angle=Math.Acos((1-radius*radius)/(2*altitude*altitude));
+
+	//get new middle
+	middlerelative=RelativeCoords(center,refpoint,refnormal,middle);
+
+	//finding the step of the angle values for the matrix :
+	anglestep=angle/(numberofsteps);
+
+	//Setting up the matrix of values to check :
+	it = 0;
+	string output = null;
+	for(beta = middlerelative.X - angle ; beta <= middlerelative.X + angle ; beta = beta + anglestep){
+		for(alpha = middlerelative.X - angle ; alpha <= middlerelative.X + angle ; alpha = alpha + anglestep){
+		output = output + ";" + Float(alpha).ToString + "," + Float(beta).ToString;
+		}
+	}
+
+	command.WritePublicText(String.Format('{0}',output);
+
+	start=timer.GetActionWithName("Start");
+	start.apply(timer);
+
+}

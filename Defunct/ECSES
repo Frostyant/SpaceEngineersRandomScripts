@@ -1,0 +1,154 @@
+//Experimental Coordinator : Static Emiting Side (ECSES)
+
+// Block names
+const string TXT_NAME="intel"
+
+//Block Variables
+IMyTextPanel[] txt;
+IMyLaserAntenna[] lsr;
+
+void init(out IMyTextPanel[] txt_array , string[] txt_name,
+		 out IMyLaserAntenna[] lsr_array , string[] lsr_name,
+		 out IMyRemoteControl[] cntrl_array , string[] cntrl_name,
+		 out IMyLargeGatlingTurret[] turret_array, string[] turret_name,
+		 out IMyTerminalBlock[] term_array,string[] term_namename)
+{
+
+
+
+		if(txt_array != null){
+			n = txt_array.Length;
+			for (i=0,i <= n-1, i++){
+
+				txt_array[i] = 
+					GridTerminalSystem.GetBlockWithName(txt_name[i])
+						 as IMyTextPanel;
+			}
+		}
+
+
+
+				if(lsr_array != null){
+			n = lsr_array.Length;
+			for (i=0,i <= n-1, i++){
+
+				lsr_array[i] = 
+					GridTerminalSystem.GetBlockWithName(lsr_name[i])
+						 as IMyLaserAntenna;
+			}
+		}
+
+
+						if(cntrl_array != null){
+			n = cntrl_array.Length;
+			for (i=0,i <= n-1, i++){
+
+				cntrl_array[i] = 
+					GridTerminalSystem.GetBlockWithName(cntrl_name[i])
+						 as IMyRemoteControl;
+			}
+		}
+
+						if(turret_array != null){
+			n = turret_array.Length;
+			for (i=0,i <= n-1, i++){
+
+				turret_array[i] = 
+					GridTerminalSystem.GetBlockWithName(turret_name[i])
+						 as IMyLargeGatlingTurret;
+			}
+		}
+
+						if(term_array != null){
+			n = term_array.Length;
+			for (i=0,i <= n-1, i++){
+
+				term_array[i] = 
+					GridTerminalSystem.GetBlockWithName(term_name[i])
+						 as IMyTerminalBlock;
+			}
+		}
+
+						if(tim_array != null){
+			n = tim_array.Length;
+			for (i=0,i <= n-1, i++){
+
+				tim_array[i] = 
+					GridTerminalSystem.GetBlockWithName(tim_name[i])
+						 as IMyTimerBlock;
+			}
+		}
+
+						if(thrust_array != null){
+			n = thrust_array.Length;
+			for (i=0,i <= n-1, i++){
+
+				thrust_array[i] = 
+					GridTerminalSystem.GetBlockWithName(thrust_name[i])
+						 as IMyThrust;
+			}
+		}
+
+		 out IMyTimerBlock[] tim_array,string[] tim_name
+		 out IMyThrust[] thrust_array,string[] thrust_
+}
+
+void save(string[] raw,string sep,IMyTextPanel txt){
+
+	string Ref;
+	int n;
+
+	Ref = '';
+
+	n = info.Length;
+
+
+
+	for (i = 0 , i <= n-1, i++ ){
+
+		Ref = Ref + raw[i];
+
+}
+
+
+string GetRaw(IMyTextPanel txt){
+
+	string output;
+
+	output=txt.GetPublicText();
+
+	return output;
+}
+
+
+
+string[] GetRef(IMyTextPanel txt,String sep){
+
+	string raw
+
+	raw=GetRaw(txt);
+
+
+	string [] output;
+
+	string[] output =raw.Split(sep);
+
+}
+
+Main(string argument){
+	init(txt,[TXT_NAME]
+		,null,null
+		,null,null
+		,null,null
+		,null,null
+		,tim,[TIM_NAME]
+		,null,null);
+
+	Ref = GetRef(txt[0]);
+
+	lsr[0] = 
+		GridTerminalSystem.GetBlockWithName(Ref[0])
+			as IMyLaserAntenna;
+
+	
+}

@@ -1,0 +1,34 @@
+
+void Main (string Argument) {
+
+//Setup (not the most efficient way)
+int xc=0;
+int yc=0;
+int zc=0;
+const string SCREEN_NAME = "NAV Instructions"; 
+
+IMyTextPanel txt = null;
+//END of Setup
+
+
+txt = GridTerminalSystem.GetBlockWithName(SCREEN_NAME) as IMyTextPanel;
+string posraw =txt.GetPublicText();
+
+List<int> res= new List<int>( Array.ConvertAll(posraw.Split(','), int.Parse) );
+
+xc =res [0];
+ 
+
+yc=res[1];
+
+
+zc=res[2];
+ 
+
+
+
+
+// required because of some bugs  
+    txt.ShowTextureOnScreen();  
+    txt.ShowPublicTextOnScreen(); 
+}

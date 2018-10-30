@@ -1,0 +1,166 @@
+//Mapper Guide
+
+
+//Naming (May change depending on Ship)
+
+const String TXT_NAME = "planetinfo";
+const String TXTTEMP_NAME = "temp";
+const String TXTCOMMAND_NAME = "command";
+const String TIMER_NAME = "timerguide";
+const String TIMER_NAME = "timermap";
+
+
+//Dont change anything beyond this point
+
+
+//Initializing variables
+
+IMyTextPanel txt = null;
+Vector3 center=null;
+Vector3 refpoint=null;
+Vector3 refnormal=null;
+IMyTimerBlock Timer= null;
+IMyTimerBlock setonmap= null;
+
+
+
+//Initializing Functions
+
+
+public void GetInfo(string raw , ref Vector3 center, ref Vector3 refpoint, ref Vector3 refnormal){
+
+//the ref variables HAVE to be introduced beforehand(like say by writing : "Vector3 center=null;"), and will be modified by this code (just a reminder) 
+
+string[] res= raw.Split(';');
+
+//only doing it 3 times, so simpler not to do a loop I think
+
+string[] res0 = res[0].Split(',');
+string[] res1 = res[1].Split(',');
+string[] res2 = res[2].Split(',');
+
+//modify values of references
+
+center=new Vector3(float.Parse(res0[0]),float.Parse(res0[1]),float.Parse(res0[2]));
+refpoint=new Vector3(float.Parse(res1[0]),float.Parse(res1[1]),float.Parse(res1[2]));
+refnormal=new Vector3(float.Parse(res2[0]),float.Parse(res2[1]),float.Parse(res2[2]));
+}
+
+
+
+Vector3 CrossProduct(Vector3 a, Vector3 b){
+	Vector3 sol = (a.Y*b.Z-b.Y*a.Z,a.X*b.Z-b.X*a.Z,a.X*b.Y-b.X*a.Y);
+	return sol
+}
+
+
+
+
+
+public Vector3 RelativeCoords(Vector3 center, Vector3 refpoint, Vector3 refnormal, Vector3 pos){
+
+	//computing the base point of the perpendicular to the plane passing through the current position 
+
+	k=dotproduct(pos,refnormal)-dotproduct(refpoint,refnormal);
+
+	pos2=pos+k*refnormal;
+
+
+
+	//computing angles now
+
+	Alpha = AngleBetween(pos2+center,pos+center);
+	Beta = AngleBetween(refpoint+center,pos2+center);
+
+
+	//getting height
+
+	heightvec=pos-center;
+	height=heightvec.magnitude;
+
+	Vector3 output = new Vector3 (Alpha, Beta, height) ;
+	
+	return output;
+
+}
+
+
+//for this function we use a "unit" circle in the plane defined by reformal to determin the closest point to pos in the plane in terms of 2 computable vectors
+// then we add the normal vector times the distance between point and pos
+
+public Vector3 AbsoluteCoords(Vector3 center, Vector3 refpoint, Vector3 refnormal, Vector3 pos){
+
+//getting "unit" length
+unit=pos.Z*Math.Cos(pos.X);
+
+//getting the vector from center to ref point
+a=unit*Normalize(refpoint-center); 
+
+//get perpendicular to vector from center to ref point in plane to constitute the base of said plane
+b=unit*Normalize(Vector3.Cross(refpoint-center,pos));
+
+//getting position of the closest point to pos on the plane through use of the trig circle (if there are issues check the angle between function in C sharp 
+// probably)
+absolutepos2=Math.Sin(pos.Y)*b+Math.Cos(pos.Y)*a;
+
+//find the actual position in absolute 
+absolutepos=absolute2+refnormal*Math.Sin(pos.X)*pos.Z
+
+//IMPORTANT : refnormal is ASSUMED to be normalized (there really is not a reason for it not to be) if not the just type refnormal = Vector3.Normalize(refnormal);
+}
+
+
+
+
+
+
+
+
+void Main(){
+
+	txt = GridTerminalSystem.GetBlockWithName(TXT_NAME) as IMyTextPanel;
+	cntrl = GridTerminalSystem.GetBlockWithName(CONTROL_NAME) as IMyRemoteControl;
+	command = GridTerminalSystem.GetBlockWithName(TXTCOMMAND_NAME) as IMyTextPanel;
+	timer = GridTerminalSystem.GetBlockWithName(TIMER_NAME) as IMyTimerBlock;
+	setonmap = GridTerminalSystem.GetBlockWithName(TIMER_NAME) as IMyTimerBlock;
+
+	//getting the planet info
+
+	raw=txt.GetPublicText();
+	GetInfo(raw,center,refpoint,refnormal);
+
+	//getting current relative coords
+	pos = cntrl.GetPosition;
+	relativepos = RelativeCoords( center,  refpoint,  refnormal,  pos);
+
+	//getting commands
+	raw=command.GetPublicText();
+	string[] res= raw.Split(';');
+
+	//finding objective coordinates
+	objectiverelative=new Vector3(float.Parse(res[0]),float.Parse(res[1]),relativepos.Z);
+
+	//setting up objective coordinates in absolute coordinates (so that remote control can understand them)
+	objectiveabsolute=AbsoluteCoords(objectiverelative);
+
+	distancevector=objectiveabsolute-pos;
+
+	if(distancevector.Magnitude >= 5){
+	cntrl.AddWaypoint(objectiveabsolute,"next data point");
+	cntrl.SetAutoPilotEnabled(true);
+	}else{
+	cntrl.SetAutoPilotEnabled(false);
+	output=raw.TrimStart({res[0],res[1],",",";"});
+	command.WritePublicText(String.Format('{0}',output);
+
+	stop=timer.GetActionWithName("Stop");
+	stop.apply(timer);
+	start=setonmap.GetActionWithName("Start");
+	start.apply(setonmap);
+	
+	}
+
+	
+
+
+}

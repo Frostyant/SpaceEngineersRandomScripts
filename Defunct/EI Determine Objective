@@ -1,0 +1,66 @@
+//Economic Infrastucture Script
+
+//okay so the standard info format is :
+//"role" of this section (in number format);number of "energy modules";number of "cargo modules";number of "specialized modules";integrity in percentage
+//subject to change though
+//the config info format is :
+//;"role",price of energy modules , price of cargo modules , price of specialized modules , ratio of energy , ratio of cargo , ratio of specialized , 
+//Maximal demand per specialized module
+//
+
+//Types of planned modules :
+//Ressource Gatherings defined by string : "0"  /specialized module : refineries + an antenna for coordination mining ops
+//Civilian Factory defined by string : "1" /specialized module : Fac that builds scouts and miners (perhaps scavengers as well)
+//Stockpiles defined by string : "2" /specialized module : Better Cargo + more entry points + point defenses
+//Small Military Factory defined by string : "3" /specialized module : Fac that builds fighters and small military ship
+//Large Military Factory defined by string : "4" /specialized module : Fac that builds Large military Ships
+//(not sure) Multi Comunication Relay defined by string : "5" /specialized module : Antenna Relays for fast communication 
+
+//demand format :
+//"object" of demand (ie iron, nickel, miners, scouts, soldiers, comms support, etc.); amount; demand quantifier
+
+
+Main(){
+
+	//variable names
+	Const String TEXT_NAME = "eiinfo";
+	Const String CONFIG_NAME = "Config";
+	Const String DEMAND_NAME = "demands";
+	//END
+
+	//Block Variables
+	IMyTextPanel txt = null;
+	IMyTextPanel Config = null;
+	//END
+
+
+
+
+	//Initialising blocks
+	txt = GridTerminalSystem.GetBlockWithName(TXT_NAME) as IMyTextPanel;
+	config = GridTerminalSystem.GetBlockWithName(CONFIG_NAME) as IMyTextPanel;
+	demand = GridTerminalSystem.GetBlockWithName(DEMANDS_NAME) as IMyTextPanel;
+	//END
+
+	//getting the status of this structure
+	raw=txt.GetPublicText();
+	string[] status = raw.Split(';');
+	//END
+	
+	//determining which data is for us rom the config file and extracting it
+	raw=config.GetPublicText();
+	string[] data = raw.Split(';'');
+	dataus = data[float.Parse(status[0])];
+	datausref=dataus.Split(',');
+	//END
+
+	//getting demand
+	raw=demand.GetPublicText();
+	string dem[]=raw.Split(';');
+	//END
+
+
+
+	
+
+}

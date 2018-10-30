@@ -1,0 +1,290 @@
+//Initialise Explorer//
+
+// Block names (editable) //
+const string TXT0_NAME = "info" ;
+//Info Should be of the form : Ship ID $ Name of Laser Antenna 1 % Name of Laser Antenna 2 % ... $ Commander ID $ Commander GPS
+const string TXT1_NAME = "orders";
+//Orders is Assumed to be of the form : Sender ID; Receiver ID; Order Type; other info 0; other info 1 etc... 
+//here : "NC" = New Commander, other info 0 = new commander ID, other info 1 = new commander GPS
+const string TXT2_NAME = "waypoints_queue";
+//While Waypoints DO exist in Space engineers I descided to not use that feature so that the GoHere module could be replaced
+//Waypoints_queue is of the form : GPS 01; GPS 02; GPS 03; etc...
+const string TIMER_NAME = "next_waypoint";
+const float sensor_range = 50;
+const float asteroid_radius = 10;
+//in order to reduce the amount of mostly empty space we need to scout we add asteroid radius to sensor range
+//the idea being that an asteroid being PERFECTLY between two scouted "chunks" is extremly unlikely
+
+//Assuming conventional Antenna range
+const float laser_range = 10000
+
+
+
+
+
+
+
+
+
+
+//Functions ( / Methods) //
+
+public string GetRaw(IMyTextPanel txt){   
+   
+	string output;   
+   
+	output=txt.GetPublicText();   
+   
+	return output;   
+}   
+   
+public string[] GetRef(IMyTextPanel txt,char sep){   
+   
+	string raw;  
+   
+	raw=GetRaw(txt);   
+   
+	string[] output =raw.Split(sep);   
+   
+	return output;   
+   
+}
+
+
+
+public IMyTextPanel GetNewCommand(string TXT0_NAME, string TXT1_NAME){
+
+	//Initialising Variables//
+
+	IMyTextPanel txt0 = GridTerminalSystem.GetBlockWithName(TXT0_NAME) as IMyTextPanel; 
+ 
+	IMyTextPanel txt1 = GridTerminalSystem.GetBlockWithName(TXT1_NAME) as IMyTextPanel;
+
+
+
+	//Extracting info//
+
+	string[] txt0_ref;
+
+	txt0_ref = GetRef(txt0,'$');
+
+
+
+
+	//Extracting Orders//
+
+	string[] txt1_ref;
+
+	txt1_ref = GetRef(txt1,';');
+
+
+
+	//Getting updated info//
+
+	string info;
+
+	info = txt0_ref[0] + "$" + txt0_ref[1] + "$" + txt1_ref[3] + "$" +txt1_ref[4];
+
+
+
+	//Saving Updated info//
+
+	txt0.WritePublicText(info);
+
+	//Returning txt1//
+	//Because why not ?
+	//Will probably need it later
+	return txt1;
+
+}
+
+
+public string GetGridWaypoints(Vector3 obj){
+
+	const float sensor_range = 50;
+	const float asteroid_radius = 10;
+	//in order to reduce the amount of mostly empty space we need to scout we add asteroid radius to sensor range
+	//the idea being that an asteroid being PERFECTLY between two scouted "chunks" is extremly unlikely
+
+	//Assuming conventional Antenna range
+	const float laser_range = 10000
+
+	string output;
+
+	// This actually gets removed by the Next Waypoint Module
+	output = VectorToGPS(obj);
+
+
+		for(int it0 = 0; it0 < n; it0 ++){
+			for(int it1 = 0; it1 < n; it1 ++){
+
+				//If Odd//
+				if(it1/2 != Math.Floor(it1/2)){
+
+					obj = new Vector3(obj.X , obj.Y + d * 2, obj.Z);
+
+				}else{
+
+					obj = new Vector3(obj.X , obj.Y - d * 2, obj.Z);
+
+				}
+
+
+				obj = new Vector3(obj.X + (sensor_range + asteroid_radius) * 2 * it0, obj.Y, obj.Z + (sensor_range + asteroid_radius) * 2 * it1);
+
+				output = output + ";" + VectorToGPS(obj);
+			}
+
+		}
+
+	return output;
+}
+
+public Vector3 GPStoVector(string gps){
+
+	string[] coords;
+
+	//Getting Target Position//
+
+	coords = gps.Split(':');
+
+	//Pending, need to change indices
+
+	Vector3 gpsvector = new Vector3(Convert.ToSingle(coords[1]), 
+							 Convert.ToSingle(coords[2]), 
+							 Convert.ToSingle(coords[3]));
+
+	return gpsvector;
+}
+
+
+
+public string VectorToGPS(Vector3 vec){
+	string output;
+
+	output = "GPS:location:"
+		+ Convert.ToString(vec.X) +	":"
+		+ Convert.ToString(vec.Y) + ":"
+		+ Convert.ToString(vec.Z) + ":";
+
+	return output;
+}
+
+
+public void Execute(string TIMER_NAME){
+
+	//IMyBeacon bacon = GridTerminalSystem.GetBlockWithName("Bacon") as IMyBeacon;
+
+	//bacon.SetCustomName("IN EXECUTE");
+
+	IMyTimerBlock timer = GridTerminalSystem.GetBlockWithName(TIMER_NAME) as IMyTimerBlock;
+
+	if(timer != null){
+
+		//False find what is the variable type of the actions.
+
+		ITerminalAction start;
+
+		start=timer.GetActionWithName("Start");
+
+		start.Apply(timer);
+	}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+public void Main(){
+
+	//Re-Initialise//
+	//Getting new Commander into info
+
+	IMyTextPanel txt1 = GetNewCommand(TXT0_NAME,TXT1_NAME);
+
+	IMyTextPanel txt2 = GridTerminalSystem.GetBlockWithName(TXT2_NAME) as IMyTextPanel; 
+
+
+
+	//Extracting Orders//
+
+	string[] txt1_ref;
+
+	txt1_ref = GetRef(txt1,';');
+
+
+	//Checking Commander Type//
+	if(txt1_ref[3] == "EXS"){
+
+		//Getting Comander Location Vector//
+
+		Commander_pos = GPStoVector(txt1_ref[4]);
+
+		//Determining Square//
+
+		//Determining half-length of squared encased in a sphere of radius laser_range
+
+		float d;
+		d = laser_range / Math.Sqrt(3);
+
+
+		//Determining Starting Position//
+
+		Vector3 obj = new Vector3(
+		 Commander_pos.X - d + sensor_range + asteroid_radius,
+		 Commander_pos.Y - d + sensor_range + asteroid_radius + 2 * d,
+		 Commander_pos.Z - d + sensor_range + asteroid_radius);
+		//The 2 * d will be removed in first loop, but is necessary to initialise
+
+
+
+
+		//determining number of loops//
+
+		int n;
+
+		n = Math.Floor(d * 2 (sensor_range * 2 + asteroid_radius * 2));
+
+
+
+		//Generating Waypoints//
+		string waypoints;
+
+		waypoints = GetGridWaypoints(obj);
+
+
+		//Saving Waypoints//
+
+		txt2.WritePublicText(waypoints)
+
+
+		//Executing Next Waypoints//
+
+		Execute(TIMER_NAME);
+
+	}
+
+
+
+}
+
+

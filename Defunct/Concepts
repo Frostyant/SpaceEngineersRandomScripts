@@ -1,0 +1,17 @@
+//Concepts//
+
+//Offer/Demand//
+
+if one station receives to much demand : build another one (if ressources permit, otherwise send work elsewhere)
+
+EXAMPLE :
+Extratcion site,
+Receives locations of nearby asteroids from scouts
+if receives to many ressources :
+-check demand level of Refineries 
+ if HIGH :
+  -build more transfer ships
+ //need to get rid of these ressources
+ if LOW : 
+  -build new extractions site
+ //Because extraction sites do not actually give more income (miners do), but give more inventory.

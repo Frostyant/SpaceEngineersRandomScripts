@@ -1,0 +1,13 @@
+//This Resets Antnna Name
+
+//Currently Renames 1 antenna
+
+public void Main(){
+
+	List<IMyTerminalBlock> lsr = new List<IMyTerminalBlock>();
+
+	GridTerminalSystem.GetBlocsOfType<IMyLaserAntenna>(lsr); 
+
+	lsr[0].SetCustomName("lsr")
+
+}

@@ -1,0 +1,27 @@
+Soo just a little concept now that we have had programming for a while.
+
+What do you guys think about this : is it possible to create an AI faction that can independently (except for being placed initially obviously) find, gather ressources, expand or perhaps even wage war and trade ?
+
+CONCEPTS :
+
+Just to help Here are a few Concepts that should work in Space engineers:
+(well I tested most of them, others were found on this forum) 
+
+InterGrid Communication : The heart of this Concept, it is possible for multiple scripts to communicate through 2 ways :
+
+-Via the DetailedInfo command on laser antennas. This allows you to gather the name of the antenna on the other grid you are connected to via your own laser antenna, this other grid can also use DetailedInfo to read your name. (note however that in order to notice a change in name youhave to disconnect and reconnect the laser antennas)
+
+-Via physical messenger ships attaching themselves a grid receiving a message and sending it to another grid.
+    Both Methods can however only transmit a limited amount of info at a time and tend to not work well if the all the grids are moving (if even just 1 is immobile though it still works for laser antennas though).
+
+
+
+Building Ships : This is now Possible through the use of 3D printers and predefined blueprints
+
+
+
+Multiple Sizes of Grids : As you probably know projectors only work for 1 grid size. However I found a trick around that :
+
+Imagine a large grid with 2 rotors separeted by a welder, if you have a small ship rotor head on one of these two rotors, nothing on he other and a blueprint "linking" the two rotors with armor blocks and a small ship rotor head at the end, you can thus have a new smallship rotor head on the second large ship rotor.
+
+Rotors : As I mentioned above we should be able to get rotors and smallships without human intervention

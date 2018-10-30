@@ -1,0 +1,44 @@
+//Aimbot  
+Vector3 CrossProduct(Vector3 a, Vector3 b){  
+	Vector3 sol =new  Vector3(a.Y*b.Z-b.Y*a.Z,a.X*b.Z-b.X*a.Z,a.X*b.Y-b.X*a.Y);  
+	return sol; 
+}  
+  
+void Main()  
+{     
+    
+//names of the objects
+//check code for string & String      
+const string TURRET_NAME = "Turret";      
+const string CONTROL_NAME = "cntrl";      
+const string BLOCK_NAME = "block";      
+      
+//block variables  
+     
+	IMyRemoteControl cntrl = GridTerminalSystem.GetBlockWithName(CONTROL_NAME) as IMyRemoteControl;     
+	IMyLargeGatlingTurret turret = GridTerminalSystem.GetBlockWithName(TURRET_NAME) as IMyLargeGatlingTurret;     
+	IMyTerminalBlock block = GridTerminalSystem.GetBlockWithName(BLOCK_NAME) as IMyTerminalBlock;     
+     
+	//getting the vectors defining the relative space around our ship     
+	Vector3 n=turret.GetPosition()-block.GetPosition();     
+	Vector3 a=cntrl.GetPosition()-block.GetPosition();     
+	Vector3 b=CrossProduct(a,n);     
+     
+	//normalizing said vectors     
+	n=Vector3.Normalize(n);     
+	a=Vector3.Normalize(a);     
+	b=Vector3.Normalize(b);     
+     
+	//getting elevation and azimuth of turret     
+	float alpha=turret.Elevation;     
+	float beta=turret.Azimuth;     
+     
+	//determining directional vector (note that we dont have to divide the tan terms since we ensured that the adjacent is of norm 1)     
+	Vector3 obj = System.Convert.ToSingle(Math.Cos(beta)) * a 
+		+ System.Convert.ToSingle(Math.Sin(beta)) * b 
+		+ System.Convert.ToSingle(Math.Tan(alpha)) * n;   
+     
+	//going over there     
+	cntrl.AddWaypoint(obj+turret.GetPosition(),"target");     
+	cntrl.SetAutoPilotEnabled(true);     
+}  

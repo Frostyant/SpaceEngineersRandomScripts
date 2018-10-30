@@ -1,0 +1,50 @@
+//Variables
+const String TXT_NAME = "Asteroid";
+const String REMOTE_NAME = "Control";
+string raw;
+IMyTextPanel txt = null;
+IMyRemoteControl cntrl=null;
+int x;
+int y;
+int z;
+int xrnd;
+int yrnd;
+int zrnd;
+//Variables END
+
+//Functions
+int getrnd(int n){
+Random rnd = new Random();
+int s = n + rnd.Next(-6000,6000);
+return s;
+}
+//Functions END
+
+Vector3D Objective;
+
+void Main()
+{
+//Get Blocks
+    txt = GridTerminalSystem.GetBlockWithName(TXT_NAME) as IMyTextPanel;
+    cntrl = GridTerminalSystem.GetBlockWithName(REMOTE_NAME) as IMyRemoteControl;
+//Get Blocks END
+
+//Get Info
+    raw=txt.GetPublicText();
+    string[] res = raw.Split(',');  
+    x =Int32.Parse(res [0]); 
+    y=Int32.Parse(res[1]); 
+    z=Int32.Parse(res[2]);
+    xrnd=getrnd(x);
+    yrnd=getrnd(y);
+    zrnd=getrnd(z);
+    Objective= new Vector3D(xrnd,yrnd,zrnd);
+//Get Info END
+
+//Move
+cntrl.AddWaypoint(Objective,"Objective");
+cntrl.SetAutoPilotEnabled(true);
+//Move END
+
+
+}

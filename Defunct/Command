@@ -1,0 +1,111 @@
+//Command//
+
+// Block names (editable)//
+const string TXT0_NAME = "info" ;
+//Info Should be of the form : Ship ID $ Name of Laser Antenna 1 % Name of Laser Antenna 2 % ... $ other Stuff
+const string TXT1_NAME = "orders";
+//orders is Assumed to be of the form : Sender ID; Receiver ID; Order Type; other info 0; other info 1 etc... 
+
+
+//Block Variables //
+IMyTextPanel txt0; 
+IMyTextPanel txt1;
+
+
+//Functions//
+  
+public string GetRaw(IMyTextPanel txt){   
+   
+	string output;   
+   
+	output=txt.GetPublicText();   
+   
+	return output;   
+}   
+   
+   
+   
+   
+   
+public string[] GetRef(IMyTextPanel txt,char sep){   
+   
+	string raw;  
+   
+	raw=GetRaw(txt);   
+   
+	string[] output =raw.Split(sep);   
+   
+	return output;   
+   
+}
+
+
+public void Execute(string TIMER_NAME){
+
+	IMyTimerBlock timer = GridTerminalSystem.GetBlockWithName(TIMER_NAME) as IMyTimerBlock;
+
+	if(timer != null){
+
+		//False find what is the variable type of the actions.
+
+		ITerminalAction start;
+
+		start=timer.GetActionWithName("Start");
+
+		start.apply(timer);
+	}
+}
+
+
+public void Main(){
+
+	//Initialising Variables//
+  
+	IMyTextPanel txt0 = GridTerminalSystem.GetBlockWithName(TXT0_NAME) as IMyTextPanel;   
+
+	IMyTextPanel txt1 = GridTerminalSystem.GetBlockWithName(TXT1_NAME) as IMyTextPanel;
+
+
+
+
+	//Extracting Info//
+
+	string[] txt0_ref;
+
+	txt0_ref = GetRef(txt0,'$');
+
+	U_ID = txt0_ref[0];
+
+	U_ID_info = U_ID.Split('-');
+
+
+
+
+	//Extracting orders//
+
+	string[] txt1_ref;
+
+	txt1_ref = GetRef(txt1,';');
+
+
+
+	//Getting Receiver-ID Type//
+
+	R_ID = txt1_ref[1];
+
+	R_ID_info = R_ID.Split('-');
+
+
+	//Is it our ID ?//
+	//if yes execute command == do nothing here
+	if(U_ID != R_ID){
+
+	}
+
+
+
+
+
+
+
+}

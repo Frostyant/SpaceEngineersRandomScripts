@@ -1,0 +1,157 @@
+//comments define sections except if they are preceded with a -
+
+//Functions !!!!! :)
+static double Sqr(double numb){   
+    double S = numb*numb; 
+    return S; 
+    }   
+    
+static float Dist(double x1, double y1, double z1, double x2, double y2, double z2){    
+    float S = (float)Math.Sqrt(Sqr(x1-x2)+Sqr(y1-y2)+Sqr(z1-z2)); 
+    return S; 
+}  
+
+static double FindAngle(float d1,float d2,float d3){
+    double S = Math.Acos((Sqr(d1)+Sqr(d2)-Sqr(d3))/(2*d1*d2));
+    return S;
+}
+
+void applyAction(IMyTerminalBlock block, string actionName)  
+{  
+  ITerminalAction action = block.GetActionWithName(actionName);  
+  action.Apply(block);  
+} 
+
+//End... :(
+
+void Main (){
+
+//Setup (not the most efficient way)
+
+//-coordinates of center
+double xa=0;
+double ya=0;
+double za=0;
+
+//-coordinates of front
+double xb=0;
+double yb=0;
+double zb=0;
+
+//-coordinates of top
+double xd=0;
+double yd=0;
+double zd=0;
+
+//-coordinates of objective
+int xc=0;
+int yc=0;
+int zc=0;
+
+//-Angle
+double angle_bac=0;
+double angle_dac=0;
+
+//-Distances
+float ab=0;
+float ac=0;
+float bc=0;
+float ad=0;
+float dc=0;
+
+const string SCREEN_NAME = "NAV Instructions";
+const string CENTER_NAME = "NAV Center";
+const string FRONT_NAME = "NAV Front";
+const string TOP_NAME = "NAV Top";
+const string GYRO_NAME = "Gyro";
+
+
+IMyCubeBlock Center = null;
+IMyCubeBlock Front = null;
+IMyCubeBlock Top = null;
+IMyTextPanel txt = null;
+IMyGyro gyro = null;
+
+
+//END of Setup :)
+
+
+// get stuff from the text panel
+
+txt = GridTerminalSystem.GetBlockWithName(SCREEN_NAME) as IMyTextPanel;
+string posraw =txt.GetPublicText();
+string[] res = posraw.Split(','); 
+
+xc =Int32.Parse(res [0]);
+yc=Int32.Parse(res[1]);
+zc=Int32.Parse(res[2]);
+// :(
+
+//get position of blocks
+Center=GridTerminalSystem.GetBlockWithName(CENTER_NAME) as IMyCubeBlock;
+Front=GridTerminalSystem.GetBlockWithName(FRONT_NAME) as IMyCubeBlock;
+Top=GridTerminalSystem.GetBlockWithName(TOP_NAME) as IMyCubeBlock;
+var Center_pos=Center.GetPosition();
+var Front_pos=Front.GetPosition();
+var Top_pos=Top.GetPosition();
+xa=Center_pos.GetDim(0);
+ya=Center_pos.GetDim(1);
+za=Center_pos.GetDim(2);
+xb=Front_pos.GetDim(0);
+yb=Front_pos.GetDim(1);
+zb=Front_pos.GetDim(2);
+xd=Top_pos.GetDim(0);
+yd=Top_pos.GetDim(1);
+zd=Top_pos.GetDim(2);
+//:)
+
+
+//Get Angle through the dark arts known as Maths
+ab=Dist(xa,ya,za,xb,yb,zb);
+ac=Dist(xa,yb,za,xc,yc,zc);
+bc=Dist(xb,yb,zb,xc,yc,zc);
+ad=Dist(xa,ya,za,xd,yd,zd);
+dc=Dist(xd,yd,zd,xc,yc,zc);
+angle_bac=FindAngle(ab,ac,bc);
+angle_dac=FindAngle(ad,ac,dc);
+//:)
+
+
+
+//Setup Complete, Systems Calibrated, Time to go ! :)
+while(angle_bac>10){
+    Front_pos=Front.GetPosition();
+    xb=Front_pos.GetDim(0); 
+    yb=Front_pos.GetDim(1); 
+    zb=Front_pos.GetDim(2);
+    bc=Dist(xb,yb,zb,xc,yc,zc);
+    ab=Dist(xa,ya,za,xb,yb,zb);
+    angle_bac=FindAngle(ab,ac,bc);
+    applyAction(gyro,"IncreaseYaw");    
+}
+
+
+
+while(angle_dac>10){ 
+    Front_pos=Front.GetPosition(); 
+    xd=Front_pos.GetDim(0);  
+    yd=Front_pos.GetDim(1);  
+    zd=Front_pos.GetDim(2); 
+    dc=Dist(xd,yd,zd,xc,yc,zc); 
+    ad=Dist(xa,ya,za,xd,yd,zd); 
+    angle_bac=FindAngle(ad,ac,dc); 
+    applyAction(gyro,"IncreasePitch");   
+}
+
+
+//:)
+
+
+
+// required because of some bugs  
+    txt.ShowTextureOnScreen();  
+    txt.ShowPublicTextOnScreen(); 
+}
+
+//-This Is not a precise movement script, it is supposed to generate random movement with the RAND program
+//-if the ship goes randomly in another direction then we have accomblished our objective

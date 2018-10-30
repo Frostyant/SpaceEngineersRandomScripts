@@ -1,0 +1,188 @@
+//AA script
+
+
+//When active this script will deliberatly randomize the shooting of your turrets in order to hit targets more easily.
+//NOTE: This was designed for Ground-Air combat as such it is assumed that the plane on which the turrets sit is the same one (keep that in mind when building your 
+//vessels)
+//The Eyes can be ANY type of turret (I usually use interior : smaller targets even if more obvious)
+//note the eyes while somewhat appart should be relativly close together in order to minimize the chance that they hit different targets
+
+//not for simplicities sake I decided that instead of adding a bunch of blocks whose coordinates you need to get the two eyes have the following conditions :
+//-be close enough such that they should always aim a the same target
+//-be of any type of turret on any grid (well in theory at least)
+//-be on the same plane
+//-be of the same orientation
+//-eye0 FACES eye1 as in the following schematic (-> shows the orientation at rest)
+//-MUST NOT HAVE IDLE MOVEMENT ENABLED (otherwise all hell breaks loose)
+//-presence of some block called BLOCK_NAME (default names is "00" but you can change it below) BELOW the center of eye0)
+
+//The conditions on the other turrets are :
+//-be of same orientation as the eye turrets
+//-be of any type (it is recommended that you use one with same projectile speed as the eyes though)
+//-be on the same plane OR on one parallel to the plane of the eyes
+
+//Schematic example :
+//-> indicates orientation at rest (when built)
+//0 and 1 indicate armor blocks of height 0 and 1 facing UP (like the turrets)
+//. indicate slopes(or armor blocks not facing up) qa
+
+
+// 1111111(Turret1->)1111111
+// (eye0->)111111111(eye1->)
+// .........................
+// 0000000(Turret2->)0000000
+
+
+
+
+//This method has an input of 2 angles and a coordinate system in vector3's and outputs the corresponding relative vector in 3D space
+Vector3 GetFiringVector(float alpha,float beta,Vector3 a,Vector3 b,Vector3 n){
+	//We are putting minus signs here for now since mathematical functions consider angles anticlockwise NOT clockwise
+	//also the orientation of an angle is important here
+	Vector3 obj=Math.Cos(-beta)*a+Math.Sin(-beta)*b+Math.Tan(-alpha)*n;   
+	output obj
+}
+
+
+//This just does the standard dot product
+//probably already in but I had Issues with the cross product soo yeah...
+double DotProduct(Vector3 a, Vector3 b){
+	double dot = a.X*b.X + a.Y*b.Y + a.Z*b.Z;
+	return dot;
+}
+
+
+
+//This just does a cross product
+//A cross product is a mathematical operation that given 2 vectors gives a 3rd one whose length is the area of the figure made by the other 2 vectors
+//and which is normal/perpendicular to said vectors (its very usefull for programming in SE and in 3D geometry in general)
+//(cross product only exists in 3D and 7D)
+Vector3 CrossProduct(Vector3 a, Vector3 b){
+	Vector3 sol = (a.Y*b.Z-b.Y*a.Z,a.X*b.Z-b.X*a.Z,a.X*b.Y-b.X*a.Y);
+	return sol
+}
+
+
+//Determine pseudo-intersection
+
+//EXPLANATION START
+//this Script determins the 2 points that are the closest to each other on both lines then returns the average of their vectors
+//this gives us the best estimate of the "intersection"
+//if the 2 lines intersect the 2 points and average are identical, if they miss closely we still get where the intersection should be
+//note this script still assumes that in theory you have 2 lines that intersect, but you have some imprecision in your measurements
+//if the 2 lines COMPLETLY MISS it will give nonsensical values (ie : the eyes target 2 completly different ships)
+
+//k0 and k1 are the directional vectors of the lines wose pseudo intersection we determin
+//a and b are points belonging to each line
+//EXPLANATION FINISH
+
+Vector3 PseudoIntersection(Vector3 k0,Vector3 a, Vector3 k1, Vector3 b){
+	//Let us define the plane containing b and vectors k1 and k0 (defined by vector3 n and constant c)
+	Vector3 n=Vector3.Normalize(CrossProduct(k0,k1));
+	double c = -(DotProduct(b,n));
+	//END
+
+	//let us find the point a1 which is in the above plane and the closest to a
+	a1=a+n*(-1*(DotProduct(a,n)+c)/DotProduct(n,n));
+	//END
+
+	//now lets find the intersection between the line of directional vector k0 passing through a1 and line k1 through b
+	//this bit is basically just solving a system of equations
+	//but its easier since we KNOW there is a solution
+	//except if k0 and k1 are colinear but thats EXTREMLY unlikely
+	if(k0.X==0){
+	q=(a1.X-b1.X)/(-k1.X);
+	i=q*k1+b
+	}else{
+	q=((b.X-a.X)*(k0.Y/k0.X)+a.Y-b.Y)/((k1.X*k0.Y/k0.X)-k1.Y);
+	i=q*k1+b
+	}
+	//END
+
+	//Now let us determin the pseudo intersection (using the fact that parallel lines always have the same perpendicular distance from one another)
+	pseudo-intersection=i-(a1-a)
+	return pseudo
+	//END
+}
+
+
+
+
+
+void Main(){
+
+	//Turret Names
+	const String EYE0_NAME = "Eye 0";
+	const String EYE1_NAME = "Eye 1";
+	const String BLOCK_NAME = "00";
+	const String TURRETS_PREFIX = "AA";
+	const String SETTINGS_NAME = "AA Settings";
+	//END
+
+
+	//Settings
+	double dispersal = 5.00;
+	//END
+
+	//Initializing block variables
+	IMyLargeTurretBase eye0 = GridTerminalSystem.GetBlockWithName(EYE0_NAME) as IMyLargeTurretBase;   
+	IMyLargeTurretBase eye1 = GridTerminalSystem.GetBlockWithName(EYE1_NAME) as IMyLargeTurretBase;
+	IMyTerminalBlock block = GridTerminalSystem.GetBlockWithName(BLOCK_NAME) as IMyTerminalBlock;
+	//IMyLargeTurretBase[] turrets = SearchBlocksOfName(TURRETS_PREFIX) as IMyLargeTurretBase[];
+	//Prototype version only part :
+	IMyLargeTurretBase turret = GridTerminalSystem.GetBlockWithName(TURRETS_PREFIX) as IMyLargeTurretBase;
+	//END
+
+
+	//Gathering current Elevation and Azimuths
+	float alpha0=eye0.GetElevation(); 
+	float alpha1=eye1.GetElevation(); 
+	float beta0=eye0.GetAzimuth(); 
+	float beta1=eye1.GetAzimuth(); 
+	//END
+
+	//We only want this system to activate if Elevation and Azimuths are not equal to 0
+	if (alpha0 != 0 && alpha1 != 0 && beta0 != 0 && !=0){
+	//Setting up relative coordinate systems for the Turrets (getting a,b and n for the method above)
+	Vector3 a = Vector3.Normalize(eye1.GetPosition()-eye0.GetPosition());
+	Vector3 n = Vector3.Normalize(eye0.GetPosition()-block.GetPosition());
+	//NOTE : If there is some issue where the script works but does not AIM correctly exchange a for n and vice versa below
+	Vector3 b = Vector3.Normalize(CrossProduct(a,n));
+	//END
+
+	//Detemining vector equation of the line of fire of the two turrets
+	//the k's are the direction al vectors
+	Vector3 k0=GetFiringVector(alpha0,beta0,a,b,n);
+	Vector3 k1=GetFiringVector(alpha1,beta1,a,b,n);
+	//END
+
+	//Finding Aimpoint and determining mean distance, thus deducing maximal angle (gamma) given our dispersal variable
+	Vector3 aim=PseudoIntersection(k0,eye0.GetPosition,k1,eye1,GetPosition);
+	Vector3 meanpoint = (eye0+eye1)/2;
+	Vector3 meanvector = aim-meanpoint;
+	float meandistancef = meanvector.magnitude;
+	double meandistance = System.Convert.ToDouble(meandistancef);
+	double gamma = Math.Atan(dispersal/meandistance)
+	//END
+
+
+	//Setting up aim for turrets
+	//PROTOTYPE VERSION
+
+	//Getting angles
+	//note I am using arctan here in order to be sure, since sin and cos are not unique to an angle in the range 0-360
+	Vector3 aimvector= aim - turret.GetPosition();
+	alpha2 = Atan(-aim.Z);
+	beta2= Atan((-aim.Y)/(aim.X))
+	//END
+
+	//Setting up turret
+	turret.SetAzimuth(beta2);
+	turret.SetElevation(alpha2);
+	turret.GetActionWithName("Shoot_On").Apply(turret);
+	//END
+
+
+	}
+
+}

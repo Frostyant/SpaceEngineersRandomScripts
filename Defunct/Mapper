@@ -1,0 +1,123 @@
+//Mapping Programme
+
+//names, can change this bit
+const String TXT_NAME = "planetinfo";
+const String TXTTEMP_NAME = "temp";
+const String CONTROL_NAME = "cntrl";
+const String MAP_NAME = "map";
+
+//dont change anything below this point
+IMyTextPanel txt;
+IMyTextPanel temp;
+IMyTextPanel map;
+IMyRemoteControl center;
+Vector3 center;
+Vector3 refpoint;
+Vector3 refnormal;
+string raw;
+
+
+//Functions
+//Functions
+//Functions
+
+
+//keeping this function for later use in other programs, extracts info out of planetinfo (planetary canter, reference point and reference plane through its normal)
+
+public void GetInfo(string raw , ref Vector3 center, ref Vector3 refpoint, ref Vector3 refnormal){
+
+//the ref variables HAVE to be introduced beforehand(like say by writing : "Vector3 center=null;"), and will be modified by this code (just a reminder) 
+
+string[] res= raw.Split(';');
+
+//only doing it 3 times, so simpler not to do a loop I think
+
+string[] res0 = res[0].Split(',');
+string[] res1 = res[1].Split(',');
+string[] res2 = res[2].Split(',');
+
+//modify values of references
+
+center    = new Vector3(float.Parse("res0[0]"),float.Parse("res0[1]"),float.Parse("res0[2]"));
+refpoint  = new Vector3(float.Parse("res1[0]"),float.Parse("res1[1]"),float.Parse("res1[2]"));
+refnormal = new Vector3(float.Parse("res2[0]"),float.Parse("res2[1]"),float.Parse("res2[2]"));
+}
+
+
+
+Vector3 CrossProduct(Vector3 a, Vector3 b){
+	Vector3 sol = (a.Y*b.Z-b.Y*a.Z,a.X*b.Z-b.X*a.Z,a.X*b.Y-b.X*a.Y);
+	return sol
+}
+
+
+
+
+
+//this converts absolute coordinates into coordinates relative to a particular planet :
+
+public Vector3 RelativeCoords(Vector3 center, Vector3 refpoint, Vector3 refnormal, Vector3 pos){
+
+	//computing the base point of the perpendicular to the plane passing through the current position 
+
+	k=dotproduct(pos,refnormal)-dotproduct(refpoint,refnormal);
+
+	pos2=pos+k*refnormal;
+
+
+
+	//computing angles now
+
+	Alpha = AngleBetween(pos2+center,pos+center);
+	Beta = AngleBetween(refpoint+center,pos2+center);
+
+
+	//getting height
+
+	heightvec=pos-center;
+	height=heightvec.magnitude;
+
+	Vector3 output = new Vector3 (Alpha, Beta, height) ;
+	
+	return output;
+
+}
+
+
+
+
+//MAIN
+//MAIN
+//MAIN
+
+
+void Main() {
+	//getting the blocks
+
+	txt = GridTerminalSystem.GetBlockWithName(TXT_NAME) as IMyTextPanel;
+	map = GridTerminalSystem.GetBlockWithName(MAP_NAME) as IMyTextPanel;
+	cntrl = GridTerminalSystem.GetBlockWithName(CONTROL_NAME) as IMyRemoteControl;
+
+
+
+	//getting the planet info
+
+	raw=txt.GetPublicText();
+	GetInfo(raw,center,refpoint,refnormal);
+
+
+
+	//getting our position
+
+	Vector3 pos = cntrl.GetPosition;
+
+	Vector3 coords = RelativeCoords(center, refpoint, refnormal, pos);
+
+	//inputting this into the map
+	//raw is used here to get the previous data from the map without removing it
+	raw=map.GetPublicText();
+	map.WritePublicText(String.Format('{0};{1},{2},{3}',raw,coords.X,coords.Y,coords.Z);
+
+
+
+}

@@ -1,0 +1,70 @@
+//Transfer Inventory//
+//This Script Transfers ALL invetory from cargo 0 to cargo 1
+//This is reverse-engineered code from Quaixor
+
+// Block names (editable)//
+const string CARGO0_NAME = "A";
+const string CARGO1_NAME = "B";
+const string TIMER0_NAME = "ERROR";
+
+//Functions//
+
+public void Execute(string TIMER_NAME){
+
+	IMyTimerBlock timer = GridTerminalSystem.GetBlockWithName(TIMER_NAME) as IMyTimerBlock;
+
+	if(timer != null){
+
+		//False find what is the variable type of the actions.
+
+		ITerminalAction start;
+
+		start=timer.GetActionWithName("Start");
+
+		start.Apply(timer);
+	}
+}
+
+public void Main(){
+
+	//Initialise Variables//
+
+	IMyTerminalBlock cargo0_container = GridTerminalSystem.GetBlockWithName(CARGO0_NAME) as IMyTerminalBlock;
+
+	IMyTerminalBlock cargo1_container = GridTerminalSystem.GetBlockWithName(CARGO1_NAME) as IMyTerminalBlock;
+
+
+
+	//Get Inventory Owner//
+	var cargo0 = cargo0_container as IMyInventoryOwner; 
+
+	var cargo1 = cargo1_container as IMyInventoryOwner;
+
+	//Get Inventories//
+
+	var inventory0 = cargo0.GetInventory(0) as IMyInventory;
+
+	var inventory1 = cargo1.GetInventory(0) as IMyInventory;
+
+	//Check Inventory Levels//
+
+	if ((double)inventory1.MaxVolume - (double)inventory1.CurrentVolume < 0.01){
+
+		Execute(TIMER0_NAME);
+
+	}else{
+
+		//Getting Access to Items//
+
+		var items = inventory0.GetItems();
+
+		//Transfer ALL Items//
+
+		for(int it = items.Count - 1; it >= 0; it--){
+			inventory1.TransferItemFrom(inventory0,it,null,true,null);
+		}
+
+	}
+
+
+}

@@ -1,0 +1,33 @@
+
+const string INPUT_NAME = "Enter";
+const string OUTPUT_NAME = "Combin";
+const string FORMAT = "{0:0.00}{1:0.00}"; 
+
+IMyTextPanel input;
+IMyTextPanel output;
+  
+void Main()  
+{  
+    if(input == null)  
+    {  
+        input = GridTerminalSystem.GetBlockWithName(INPUT_NAME) as IMyTextPanel;  
+          
+        if(input == null)  
+            throw new Exception("Can't find LCD/Text panel: " + INPUT_NAME);  
+    } 
+
+     if(output == null)   
+    {   
+        output = GridTerminalSystem.GetBlockWithName(OUTPUT_NAME) as IMyTextPanel;   
+           
+        if(output == null)   
+            throw new Exception("Can't find LCD/Text panel: " + OUTPUT_NAME);   
+    }
+
+string inputtxt = input.GetPublicText();
+string outputtxt = output.GetPublicText();
+
+output.WritePublicText(String.Format(FORMAT, outputtxt, inputtxt,  false));  
+
+ 
+} 

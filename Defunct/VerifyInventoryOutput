@@ -1,0 +1,229 @@
+//Check OUT inventory//
+//checks if output inventory contains stuff & if so asks for a delivery
+//should be activated only when something empties the cargo containers
+
+
+//Block names (editable) //
+const string TXT0_NAME = "info";
+//Ship ID $ Name of Laser Antenna 1 % Name of Laser Antenna 2 % ... $ Commander ID $ Commander GPS$other stuff
+//const string TXT3_NAME = "current_work"; OUTDATED, Removed because unnecessary
+//text panel 3 in this format : Refinery ID ; Assembler ID;RO; Ressource ID 0, Ressource ID 1,...; Remainder of ID 0, Remainder of ID 1,...
+const string TXT1_NAME = "work_queue";
+//text panel 0 is a collection of infos in format from TXT3 separated by a "#"
+/*const*/ string[] CARGO_OUTPUT_NAMES = {"output"};
+//format is : Ressource name of ID0; Ressource name of ID1;etc...
+
+
+
+//Functions//
+
+public string GetRaw(IMyTextPanel txt){   
+   
+	string output;   
+   
+	output=txt.GetPublicText();   
+   
+	return output;   
+}   
+   
+   
+public string[] GetRef(IMyTextPanel txt,char sep){   
+   
+	string raw;  
+   
+	raw=GetRaw(txt);   
+   
+	string[] output =raw.Split(sep);   
+   
+	return output;   
+   
+}
+
+
+public void Execute(string TIMER_NAME){
+
+	IMyTimerBlock timer = GridTerminalSystem.GetBlockWithName(TIMER_NAME) as IMyTimerBlock;
+
+	if(timer != null){
+
+		//False find what is the variable type of the actions.
+
+		ITerminalAction start;
+
+		start=timer.GetActionWithName("Start");
+
+		start.Apply(timer);
+	}
+}
+
+public string[] GetMemory(string MEM_TYPE){
+
+	//Initialising//
+
+	IMyTextPanel txt0 = GridTerminalSystem.GetBlockWithName(MEM_TYPE + "_memory") as IMyTextPanel;
+
+
+
+	//Extracting memory//
+
+	string[] txt0_ref;
+
+	//CHECK THIS LINE !//
+	txt0_ref = GetRef(txt0,';');
+
+
+	//Returning Value//
+
+	return txt0_ref;
+}
+
+public string[] ExctractFirstSimpleMemory(string MEM_TYPE){
+	//Exctracts first element in memory of format info 00,info 01;etc
+
+	string[] synapses;
+	//array of all the memories
+
+	string[] output;
+
+	synapses = GetMemory(MEM_TYPE);
+
+	output = synapses[0].Split(',');
+
+	return output;
+}
+
+public string[] ExctractRelevantMemory(string MEM_TYPE, string RELEVANT_ID){
+	//Extracts memory referring to given ID
+
+	string[] synapses;
+	//array of all the memories
+
+	string[] output = {""};
+
+	synapses = GetMemory(MEM_TYPE);
+
+	for(int it = 0; it < synapses.Length; it++){
+		//checking if relevant
+		if(synapses[it].Split(',')[0] == RELEVANT_ID){
+
+			output = synapses[it].Split(',');
+
+		}
+	}
+
+	return output;
+}
+
+public IMyInventory AccessInventory(string CARGO_NAME,int inventory_type){
+	//inventory type should be 0 for ALL blocks EXCEPT assemblers & Refineries
+	//they have 2 inventories, input (0) & output(1)
+	//returns the inventory variable
+	IMyTerminalBlock cargo_container = GridTerminalSystem.GetBlockWithName(CARGO_NAME) as IMyTerminalBlock;
+
+	var cargo = cargo_container as IMyInventoryOwner;
+
+	IMyInventory inventory = cargo.GetInventory(inventory_type) as IMyInventory;
+
+	return inventory;
+
+}
+
+public bool IsEmpty(string CARGO_NAME,int inventory_type){
+	//Checks if inventory is empty
+
+	bool output;
+
+	IMyInventory inventory = AccessInventory(CARGO_NAME,inventory_type);
+
+	if((double)inventory.CurrentVolume != 0){
+		output = true;
+	}else{
+		output = false;
+	}
+
+	return output;
+}
+
+public bool AreEmpty(string[] CARGO_NAMES,int inventory_type){
+	//Checks if all Cargo containers are empty
+	bool output = true;
+
+	for(int it = 0; it < CARGO_NAMES.Length; it++){
+		output = IsEmpty(CARGO_NAMES[it],inventory_type);
+
+		if(output == false){
+			break;
+		}
+	}
+
+	return output;
+}
+
+public Vector3 GetBlockPosition(string BLOCK_NAME){
+	//Returns Block Position//
+
+	Vector3 output;
+
+	IMyTerminalBlock block = GridTerminalSystem.GetBlockWithName(BLOCK_NAME) as IMyTerminalBlock;
+
+	output = block.GetPosition();
+
+	return output;
+}
+
+public string VectorToGPS(Vector3 vec){
+	string output;
+
+	output = "GPS:location:"
+		+ Convert.ToString(vec.X) +	":"
+		+ Convert.ToString(vec.Y) + ":"
+		+ Convert.ToString(vec.Z) + ":";
+
+	return output;
+}
+
+
+public void Main(){
+	//Initialising//
+	IMyTextPanel txt1 = GridTerminalSystem.GetBlockWithName(TXT1_NAME) as IMyTextPanel;
+
+	//Checking if Output Cargo Empty//
+	bool empty;
+	empty = AreEmpty(CARGO_OUTPUT_NAMES,0);
+
+	//If false ask for transfer vessel//
+	if(empty == false){
+		//First extract work queue//
+		string[] txt1_ref;
+		txt1_ref = GetRef(txt1,'#');
+
+
+		//Now Check what work we have//
+		if(txt1_ref != null){
+			//Extract current work (first one in list)//
+			string[] work = txt1_ref[0].Split(';');
+
+			//Extracting Memory//
+			//memory is of format : {ID,GPS}
+			string[] memory = ExctractRelevantMemory("MAN",work[0]);
+
+			//Exctracting info//
+			IMyTextPanel txt0 = GridTerminalSystem.GetBlockWithName(TXT0_NAME) as IMyTextPanel;
+			string[] txt0_ref;
+			txt0_ref = GetRef(txt0,'$');
+
+			//Getting Laser Antenna position//
+			string[] lsr;
+			lsr = txt0_ref[0].Split('%');
+			string position = VectorToGPS(GetBlockPosition(lsr[0]));
+
+			//Generating Transfer Inventory Order//
+			string orders = txt0_ref[3] + "&" + "ITV" + ";" + "T" + ";" + position + ";" + memory[1];
+
+			//Sending Message//
+			Execute("SM");
+		}
+
+
+	}
+}

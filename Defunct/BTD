@@ -1,0 +1,193 @@
+//BITD script//
+
+//Block names (editable)//
+const string TXT0_NAME = "message"
+const string TXT1_NAME = "message_queue";
+const string TXT2_NAME = "current_unanswered_demands";
+//current unanswered demands is assumed to be of the form : demand in bullet proof glass; demand in computer etc...;true/false
+
+//Block Variables //
+IMyTextPanel txt0; 
+IMyTextPanel txt1;
+IMyTextPanel txt2;
+
+//Functions//
+
+public string GetRaw(IMyTextPanel txt){   
+   
+	string output;   
+   
+	output=txt.GetPublicText();   
+   
+	return output;   
+}   
+   
+   
+   
+   
+   
+public string[] GetRef(IMyTextPanel txt,char sep){   
+   
+	string raw;  
+   
+	raw=GetRaw(txt);   
+   
+	string[] output =raw.Split(sep);   
+   
+	return output;   
+   
+}
+
+public string[] GetDemands(string txt2_ref){
+
+	string[] demands;
+
+	int it0 = 0;
+
+	for(int it = 0 ; it < txt2_ref.Length-1 ; it++){
+
+		if(txt2_ref[it] != "0"){
+
+			demands[it0] = Convert.ToString(it) + ";" + txt2_ref[it];
+		}
+
+	}
+
+	return demands;
+
+}
+
+public string[] MassGetRef(string[] TXT_NAMES){
+
+	string[] output;
+
+	IMyTextPanel txttemp;
+
+	string[] txttemp_ref;
+
+	for(int it = 0 ; it < TXT_NAMES.Length ; it++){
+
+		txttemp = GridTerminalSystem.GetBlockWithName(TXT_NAMES[it]);
+
+		txttemp_ref = GetRef(txttemp);
+
+		output[it] = txttemp_ref;
+	}
+}
+
+public string[] MassDemandsToFullMessages( string[] demands){
+	string memory_temp;
+
+	string[] demand_temp;
+
+	IMyTextPanel txttemp;
+
+	string[] txttemp_ref;
+
+	string[] output;
+
+	for(it = 0 ; it < demands.Length ; it++){
+
+		demand_temp = demands[it].Split(';');
+
+		txttemp = GridTerminalSystem.GetBlockWithName("assembler_" + demand_temp[0] +"_memory");
+
+		txttemp_ref = GetRef(txttemp);
+
+		//So This program doesn't have the change preferred assembler feature
+		//I will add this in another program that changes the order of assemblers in assembler memory
+
+		output[it] = txttemp[1] + "&" + txttemp[0] + ";" + "GO" + demands[it];
+	}
+
+	return output
+}
+
+//Made This After this Code, will implement later
+public IMyTextPanel[] MassGetTxt(string[] TXT_NAMES){
+
+	IMyTextPanel[] output;
+
+	IMyTextPanel txttemp
+
+	for(int it = 0 ; it < TXT_NAMES.Length ; it++){
+
+		IMyTextPanel txttemp = GridTerminalSystem.GetBlockWithName(TXT_NAMES[it]) as IMyTextPanel;
+
+		output[it] = txttemp;
+	}
+
+	return output;
+}
+
+
+
+
+
+
+public void Main(){
+
+	//Initialising//
+	IMyTextPanel txt0 = GridTerminalSystem.GetBlockWithName(TXT0_NAME) as IMyTextPanel;
+
+	IMyTextPanel txt1 = GridTerminalSystem.GetBlockWithName(TXT1_NAME) as IMyTextPanel;
+
+	IMyTextPanel txt2 = GridTerminalSystem.GetBlockWithName(TXT2_NAME) as IMyTextPanel;
+
+
+	//Extracting message//
+
+	string txt0_raw;
+
+	txt0_raw = GetRaw(txt0);
+
+
+
+	//Extracting message queue//
+
+	string[] txt1_raw;
+
+	txt1_raw = GetRaw(txt1);
+
+
+
+	//Extracting current unanswered demands//
+
+	string[] txt2_ref;
+
+	txt2_ref = GetRef(txt2,';');
+
+
+
+	//Getting non-zeroe demands//
+
+	string[] demands;
+
+	demands = GetDemands(txt2_ref);
+
+
+
+	//Get Respective Memory//
+
+	string[] full_messages;
+
+	full_messages = MassDemandsToFullMessages(demands);
+
+
+
+	//if message txt empty//
+
+	if(txt0_raw == null){
+
+		txt0.WritePublicText(full_messages[0]);
+
+		full_messages = full_messages.Skip(1).toArray();
+	}
+
+	//Generating new Queue//
+	txt1.WritePublicText(txt1_raw + "#" + full_messages.Join("#"));
+
+	
+
+
+}

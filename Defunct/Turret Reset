@@ -1,0 +1,24 @@
+//Turret Reset
+
+void Main(){
+	
+	//Turret Names
+	const String EYE0_NAME = "Eye 0";
+	const String EYE1_NAME = "Eye 1";
+	const String TURRETS_PREFIX = "AA";
+	//END
+
+	//Initializing block variables
+	IMyLargeTurretBase eye0 = GridTerminalSystem.GetBlockWithName(EYE0_NAME) as IMyLargeTurretBase;   
+	IMyLargeTurretBase eye1 = GridTerminalSystem.GetBlockWithName(EYE1_NAME) as IMyLargeTurretBase;
+	//IMyLargeTurretBase[] turrets = SearchBlocksOfName(TURRETS_PREFIX) as IMyLargeTurretBase[];
+	//Prototype version only part :
+	IMyLargeTurretBase turret = GridTerminalSystem.GetBlockWithName(TURRETS_PREFIX) as IMyLargeTurretBase;
+	//END
+
+	eye0.SetAzimuth(0);
+	eye1.SetAzimuth(0);
+	eye0.SetElevation(0);
+	eye0.SetElevation(0);
+	turret.GetActionWithName("Shoot_Off").Apply(turret);
+}
