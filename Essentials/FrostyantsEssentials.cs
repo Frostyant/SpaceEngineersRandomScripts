@@ -2,7 +2,7 @@
 
 
 
-        #region Frostyant's Essential Method Library 
+        #region Frostyant's Essential Method Library
 
         /// <summary>
         /// Makes Vessel Go To Vector 3 position
@@ -283,12 +283,12 @@
 
         /// <summary>
         /// Used for orders requiring a sequence of actions.
-        /// 
+        ///
         /// This Sequence is numbered & the script will save this number in a database along with the specs of the action.
-        /// 
+        ///
         /// The specs are also saved in the event that one might receive an interrupting order or a later one,
         /// as to not get mixed up (although this method does not deal with that).
-        /// 
+        ///
         /// This script extracts, from a list of possibilities, the latest action in the sequence taken.
         /// </summary>
         /// <param name="input"></param>
@@ -327,7 +327,7 @@
 
         /// <summary>
         /// General Method used to check if we have reached a destination.
-        /// 
+        ///
         /// This NEEDS a specialized GetTargetLocation() method to work.
         /// This method is NOT included in my default library.
         /// </summary>
@@ -372,7 +372,7 @@
 
 
 
-        
+
         #region LCD-Print-Basic
 
         public void LcdPrintln(string msg)
