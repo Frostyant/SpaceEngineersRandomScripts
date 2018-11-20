@@ -1,17 +1,30 @@
 
-const string FIGHTER_MODE = "fightermode"; //text panel storing
-const string NORMAL_MODE = "normalmode"; //text panel storing
+const string FIGHTER_MODE = "fightermode"; //Timer Block for Fighting Mode
+const string NORMAL_MODE = "normalmode"; //Timer Block for Normal Mode
 const string ORDER = "orders";//Text panel for monitoring current status [order type];info1;info2etc
 const string TargetingGun = "targetinggun";
-const string CNTRL = "Remote Control";
-const string Front = "Front";
+const string CNTRL_NAME = "Remote Control";
+const string FRONT_NAME = "Front";
+const string FIRING_MODE = "firingmode";//Timer Block for Firing Mode (turn shoot on)
+const string PEACE_MODE = "peacemode";//Timer Block for PEace Mode (turn shoot off)
 
-public bool CheckForTargets(string gatlingname){
+public bool CheckForTargets(IMyLargeTurretBase director){
+
+	bool TargetFound = director.HasTarget;//Taken from Rdav Interceptor
+
 	return True;
 }
 
-public Vector3 GetTargetVector(string gatlingname){
-	return null
+public Vector3 GetTargetVector(IMyLargeTurretBase director){
+
+	var target = director.GetTargetedEntity();
+
+	//Again this is inspired by Rdav
+	Vector3 targetpos = target.Position;
+
+	Vector3 targetvel = target.Velocity;
+
+	return targetpos+targetvel;
 }
 
 public Vector3 GetFrontVec(string center_,string front_){
@@ -111,22 +124,45 @@ public void GoTo(IMyRemoteControl cntrl, Vector3 Pos, bool Relative){
 	cntrl.SetAutoPilotEnabled(true);
 }
 
+public bool  HitOrMiss(IMyRemoteControl cntrl, IMyLargeTurretBase director,Vector3 FrontVec,Vector3 TargetPosition){
+
+	var TargetInfo = director.GetTargetedEntity();
+
+	float EnemySize = (TargetInfo.BoundingBox.Max - TargetInfo.BoundingBox.Min).Length();//Get Enemy SIZE
+
+	//basically frontvec * (our pos - enemy pos) = cos(miss angle)
+	//cos(miss angle) * distance between us <= enemysize => we hit it !
+	if(Vector3.Dot(FrontVec,cntrl.Position - TargetPosition)*Vector3.Magnitude(cntrl.Position - TargetPosition) <= EnemySize){
+		return True;
+	}else{
+		return False;
+	}
+}
+
 public void Main(string Argument){
 
 	if(ShouldIEngage()){
-		if(CheckForTargets(TargetingGun)){
+
+		IMyLargeTurretBase director = GridTerminalSystem.GetBlockWithName(TargetingGun) as IMyLargeTurretBase;
+
+		IMyRemoteControl cntrl = GridTerminalSystem.GetBlockWithName(CNTRL_NAME) as IMyRemoteControl;
+
+
+		if(CheckForTargets(director)){
 
 			ExecuteSimple(FIGHTER_MODE); //Executes high speed fighter mode
 
-			Vector3 Target = GetTargetVector(TargetingGun);//Gets target location
+			Vector3 Target = GetTargetVector(director);//Gets target location + lead
 
 			GoTo(cntrl,Target,False);//Go to Target
 
-			Vector3 ourvec = GetFrontVec(CNTRL,Front);//Get front facing vector
+			Vector3 FrontVec = GetFrontVec(CNTRL_NAME,FRONT_NAME);//Get front facing vector
 
-			//Check ScanDistance
-			
-			//if yes fire
+			if(HitOrMiss(cntrl, director,FrontVec,Target)){
+				ExecuteSimple(FIRING_MODE);
+			}else{
+				ExecuteSimple(PEACE_MODE);
+			}
 
 
 		}else{
