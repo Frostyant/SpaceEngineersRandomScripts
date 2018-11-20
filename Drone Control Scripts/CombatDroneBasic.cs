@@ -64,32 +64,7 @@ const string CURRENT_ORDER_DATATYPE = "COrder";//This is the Current order Datat
 
 		Vector3 targetvel = target.Velocity;
 
-		return targetpos+targetvel;
-	}
-	public bool  HitOrMiss(IMyRemoteControl cntrl, IMyLargeTurretBase director,Vector3 FrontVec,Vector3 TargetPosition){
-
-		var TargetInfo = director.GetTargetedEntity();
-
-		float EnemySize = (TargetInfo.BoundingBox.Max - TargetInfo.BoundingBox.Min).Length();//Get Enemy SIZE
-
-		//basically frontvec * (our pos - enemy pos) = cos(miss angle)
-		//cos(miss angle) * distance between us <= enemysize => we hit it !
-		if(Vector3.Dot(FrontVec,cntrl.Position - TargetPosition)*Vector3.Magnitude(cntrl.Position - TargetPosition) <= EnemySize){
-			return True;
-		}else{
-			return False;
-		}
-	}
-
-	public Vector3 GetFrontVec(string center_,string front_){
-
-		Vector3 center = GetBlockPosition(center_);
-
-		Vector3 front = GetBlockPosition(front_);
-
-		output = front-center;
-
-		return output;
+		return targetpos + targetvel;
 	}
 #endregion
 
@@ -177,7 +152,7 @@ const string CURRENT_ORDER_DATATYPE = "COrder";//This is the Current order Datat
 	}
 
 	//For Remote Controls, makes you go to Pos
-	public void GoTo(IMyRemoteControl cntrl, Vector3 Pos, bool Relative){
+	public void GoTo(IMyRemoteControl cntrl, Vector3 Pos, bool Relative = false){
 		//orders ship to move to Vector location
 		Vector3 obj;
 
@@ -299,6 +274,14 @@ const string CURRENT_ORDER_DATATYPE = "COrder";//This is the Current order Datat
 	}
 #endregion
 
+#region comms
+  public void ReportEnemy(IMyLargeTurretBase director){
+    GetTargetVector(director);
+
+    //Run Comms with full argument
+  }
+#endregion
+
 public void Main(string ArgumentFull){
 
 	string[] Arguments = ArgumentFull.Split(';');
@@ -311,40 +294,26 @@ public void Main(string ArgumentFull){
 			//Amove or Defend in bounds
 			IMyLargeTurretBase director = GridTerminalSystem.GetBlockWithName(TargetingGun) as IMyLargeTurretBase;
 
+      IMyRemoteControl cntrl = GridTerminalSystem.GetBlockWithName(CNTRL_NAME) as IMyRemoteControl;
+
 			if(CheckForTargets(director)){
 
-				ExecuteSimple(FIGHTER_MODE); //Executes high speed fighter mode
+        //If Targets Found Maintain Positiong & Report
+        //Go to my current position (TO DO : add a bit of randomization for harder targeting by the enemy)
+        GoTo(cntrl,cntrl.position());
 
-				Vector3 Target = GetTargetVector(director);//Gets target location + lead
-
-				GoTo(cntrl,Target,False);//Go to Target
-
-				Vector3 FrontVec = GetFrontVec(CNTRL_NAME,FRONT_NAME);//Get front facing vector
-
-				if(HitOrMiss(cntrl, director,FrontVec,Target)){
-					ExecuteSimple(FIRING_MODE);
-				}else{
-					ExecuteSimple(PEACE_MODE); //stop shooting
-				}
-
-
-			}else{
-				ExecuteSimple(NORMAL_MODE); //revert to normal
-				ExecuteSimple(PEACE_MODE); //stop shooting
+        //Report enemy
+        ReportEnemy(director);
 			}
+
 		}else if (orders == '0'){
 			//This was a move
-			ExecuteSimple(NORMAL_MODE); //revert to normal
-			ExecuteSimple(PEACE_MODE); //stop shooting
 		}else{
 			//Else it was a defend and we were out of bounds
 			GoTo(GPStoVector(orders));
 		}
 
 	}else if (Argument == "AddOrder") {
-		ExecuteSimple(NORMAL_MODE);//revert to normal
-		ExecuteSimple(PEACE_MODE); //stop shooting
-
 		RemoveDataType(TXT_NAME,CURRENT_ORDER_DATATYPE);//Remove Past orders
 
 		AddData(TXT_NAME,CURRENT_ORDER_DATATYPE,Arguments[1]);//Adds New Parameters
