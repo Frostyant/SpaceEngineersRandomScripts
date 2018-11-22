@@ -1,71 +1,138 @@
-
-const string FIGHTER_MODE = "fightermode"; //Timer Block for Fighting Mode
-const string NORMAL_MODE = "normalmode"; //Timer Block for Normal Mode
 const string TXT_NAME = "memory";//Text panel for general data
-const string TargetingGun = "targetinggun";
-const string CNTRL_NAME = "Remote Control";
-const string FRONT_NAME = "Front";
-const string FIRING_MODE = "firingmode";//Timer Block for Firing Mode (turn shoot on)
-const string PEACE_MODE = "peacemode";//Timer Block for PEace Mode (turn shoot off)
-const string AMOVE = "AMove"; // Attack Move Order
-const string MOVE = "Move"; //Move Order
-const string DEFEND = "Defend";//Defend order
-const string MAIN = "Main"; //Main fighter loop
-const string CURRENT_ORDER_DATATYPE = "COrder";//This is the Current order Datatype
+const string HP_DISP_NAME = "HPDisplay";
+const string SYST_HP_DATATYPE = "SystemHp";//datatype for total system Hp
+const string THRUST_HP_DATATYPE = "ThrusterHp";//datatype for thruster system Hp
+const string WEAPONS_HP_DATAPYE = "WeaponHp";//datatype for Weapons systems hp
+
+#region HPSystem
+  public void InitHpSystem(){
+
+    //initialising
+
+    AllTerminalBlocks = new List<IMyTerminalBlock>();
+
+    AllThrustBlocks = new List<IMyTerminalBlock>();
 
 
-#region DETECTION
-	public bool CheckForTargets(IMyLargeTurretBase director){
+    //Terminal Health
 
-		bool TargetFound = director.HasTarget;//Taken from Rdav Interceptor
+    GridTerminalSystem.GetBlocksOfType<IMyTerminalBlock>(AllTerminalBlocks);
 
-		return True;
-	}
+    RemoveDataType(TXT_NAME,SYST_HP_DATATYPE);//just in case
 
-	//Checks if we should engage, returns 0, 1 or a location we have to go to
-	public string ShouldIEngage(IMyRemoteControl cntrl, char InternalSep = ':'){
+    AddData(TXT_NAME,SYST_HP_DATATYPE,AllTerminalBlocks.Count.ToString());
 
-		List<strings> orders =  DetData(TXT_NAME,CURRENT_ORDER_DATATYPE);
 
-		string datachunk = orders[0];
+    //Thrust Health
 
-		string[] data = datachunk.Split(InternalSep)
+    GridTerminalSystem.GetBlocksOfType<IMyThrust>(AllThrustBlocks);
 
-		string order = data[0];//If we have multiple ones (we should not) then take first
+    RemoveDataType(TXT_NAME,THRUST_HP_DATATYPE);//just in case
 
-		output = '1';
-		//Move => ignore enemy
-		if (order == MOVE){
-			output = '0';
+    AddData(TXT_NAME,THRUST_HP_DATATYPE,AllThrustBlocks.Count.ToString());
 
-		}else if (order == DEFEND){
 
-			Vector3 RelativeVec = order.position() - GPStoVector(data[1]);
+    //Weapons Health
 
-			if(Vector3.Magnitude(RelativeVec) >> Convert.ToSingle(data[2])){
+    int WeaponsCount = 0;
 
-				output = data[1];//Returns center of defend ball
-			}
+    foreach(IMyTerminalBlock block in AllTerminalBlocks){
+      if(is_weapon(block)){
+        WeaponsCount += 1;
+      }
+    }
 
-		}
-		}
-		return output
-	}
-#endregion
+    RemoveDataType(TXT_NAME,WEAPONS_HP_DATAPYE);//just in case
 
-#region TARGETING
+    AddData(TXT_NAME,WEAPONS_HP_DATAPYE,WeaponsCount.ToString());
+  }
 
-	public Vector3 GetTargetVector(IMyLargeTurretBase director){
+  //This is from Phil
+  private bool is_weapon(IMyTerminalBlock block) {
+    if (block is IMySmallMissileLauncher || block is IMySmallMissileLauncherReload ||
+    block is IMyLargeMissileTurret || block is IMyLargeGatlingTurret || block is IMyLargeInteriorTurret ||
+    block is IMySmallGatlingGun) {return true;}
+    else { return false;}
+  }
 
-		var target = director.GetTargetedEntity();
+  public List<float> CheckHp(){
+    //initialising
 
-		//Again this is inspired by Rdav
-		Vector3 targetpos = target.Position;
+    AllTerminalBlocks = new List<IMyTerminalBlock>();
 
-		Vector3 targetvel = target.Velocity;
+    AllThrustBlocks = new List<IMyTerminalBlock>();
 
-		return targetpos + targetvel;
-	}
+
+    //Terminal Health
+
+    int Hp = 0;
+
+    int WeaponsHp = 0;
+
+    GridTerminalSystem.GetBlocksOfType<IMyTerminalBlock>(AllTerminalBlocks);
+
+    foreach(IMyTerminalBlock block in AllTerminalBlocks){
+      if(block.Functional){
+
+        Hp += 1;
+
+        if(is_weapon(block)){
+          WeaponsHp += 1;
+        }
+
+      }
+
+    }
+
+
+    //Thrust Health
+
+    int ThrustHp = 0;
+
+    GridTerminalSystem.GetBlocksOfType<IMyThrust>(AllThrustBlocks);
+
+    foreach(IMyTerminalBlock block in AllThrustBlocks){
+
+      if(block.IsFunctional){
+
+        ThrustHp += 1;
+
+      }
+
+    }
+
+
+    //Getting max hps
+
+    List<string> FullHpString = GetData(TXT_NAME,SYST_HP_DATATYPE);
+
+    List<string> FullThrustString = GetData(TXT_NAME,THRUST_HP_DATATYPE);
+
+    List<string> FullWeaponsString = GetData(TXT_NAME,WEAPONS_HP_DATAPYE);
+
+    int FullHp = FullHpString[1];
+
+    int FullThrustHp = FullThrustString[1];
+
+    int FullWeaponsHp = FullWeaponsString[1];
+
+
+    //Getting percentages
+
+    float HpPerc = (float) Hp / (float) FullHp;
+
+    float ThrustPerc = (float) ThrustHp / (float) FullThrustHp;
+
+    float WeapPerc = (float) WeaponsHp / (float) FullWeaponsHp;
+
+    AllHps = new List<float>();
+
+    AllHps.Add(HpPerc);
+
+    AllHps.Add(ThrustPerc);
+
+    AllHps.Add(WeapPerc);
+  }
 #endregion
 
 #region BASIC FUNCTIONS
@@ -152,7 +219,7 @@ const string CURRENT_ORDER_DATATYPE = "COrder";//This is the Current order Datat
 	}
 
 	//For Remote Controls, makes you go to Pos
-	public void GoTo(IMyRemoteControl cntrl, Vector3 Pos, bool Relative = false){
+	public void GoTo(IMyRemoteControl cntrl, Vector3 Pos, bool Relative){
 		//orders ship to move to Vector location
 		Vector3 obj;
 
@@ -274,49 +341,21 @@ const string CURRENT_ORDER_DATATYPE = "COrder";//This is the Current order Datat
 	}
 #endregion
 
-#region comms
-  public void ReportEnemy(IMyLargeTurretBase director){
-    GetTargetVector(director);
+public void Main(string Argument){
+  if(Argument == "CheckHp"){
+    List<float> Hps = CheckHp();
 
-    //Run Comms with full argument
+    LcdClear(HP_DISP_NAME);
+    
+    AddData(HP_DISP_NAME,SYST_HP_DATATYPE,Hp[0]);//Display overall Hp
+
+    AddData(HP_DISP_NAME,THRUST_HP_DATATYPE,Hp[1]);//Display Thruster Hp
+
+    AddData(HP_DISP_NAME,WEAPONS_HP_DATAPYE,Hp[2]);//Display System Hp
+
+  }else if(Argument == "init"){
+    InitHpSystem();
   }
-#endregion
 
-public void Main(string ArgumentFull){
-
-	string[] Arguments = ArgumentFull.Split(';');
-
-
-	if(Arguments[0] == 'Main'){
-		//Check if we are allowed to engage
-		string Orders = ShouldIEngage();
-		if(Orders == '1'){
-			//Amove or Defend in bounds
-			IMyLargeTurretBase director = GridTerminalSystem.GetBlockWithName(TargetingGun) as IMyLargeTurretBase;
-
-      IMyRemoteControl cntrl = GridTerminalSystem.GetBlockWithName(CNTRL_NAME) as IMyRemoteControl;
-
-			if(CheckForTargets(director)){
-
-        //If Targets Found Maintain Positiong & Report
-        //Go to my current position (TO DO : add a bit of randomization for harder targeting by the enemy)
-        GoTo(cntrl,cntrl.position());
-
-        //Report enemy
-        ReportEnemy(director);
-			}
-
-		}else if (orders == '0'){
-			//This was a move
-		}else{
-			//Else it was a defend and we were out of bounds
-			GoTo(GPStoVector(orders));
-		}
-
-	}else if (Argument == "AddOrder") {
-		RemoveDataType(TXT_NAME,CURRENT_ORDER_DATATYPE);//Remove Past orders
-
-		AddData(TXT_NAME,CURRENT_ORDER_DATATYPE,Arguments[1]);//Adds New Parameters
-	}
 
 }
