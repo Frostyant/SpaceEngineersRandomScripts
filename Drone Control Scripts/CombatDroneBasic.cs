@@ -1,17 +1,16 @@
 
-const string FIGHTER_MODE = "fightermode"; //Timer Block for Fighting Mode
-const string NORMAL_MODE = "normalmode"; //Timer Block for Normal Mode
 const string TXT_NAME = "memory";//Text panel for general data
 const string TargetingGun = "targetinggun";
 const string CNTRL_NAME = "Remote Control";
 const string FRONT_NAME = "Front";
 const string FIRING_MODE = "firingmode";//Timer Block for Firing Mode (turn shoot on)
 const string PEACE_MODE = "peacemode";//Timer Block for PEace Mode (turn shoot off)
-const string AMOVE = "AMove"; // Attack Move Order
-const string MOVE = "Move"; //Move Order
+const string AMOVE = "AMove"; // Attack Move Order AMove|location
+const string MOVE = "Move"; //Move Orders
 const string DEFEND = "Defend";//Defend order
 const string MAIN = "Main"; //Main fighter loop
 const string CURRENT_ORDER_DATATYPE = "COrder";//This is the Current order Datatype
+const float EffectiveRange = (float) 300.0;
 
 
 #region DETECTION
@@ -19,37 +18,37 @@ const string CURRENT_ORDER_DATATYPE = "COrder";//This is the Current order Datat
 
 		bool TargetFound = director.HasTarget;//Taken from Rdav Interceptor
 
-		return True;
+		return true;
 	}
 
 	//Checks if we should engage, returns 0, 1 or a location we have to go to
-	public string ShouldIEngage(IMyRemoteControl cntrl, char InternalSep = ':'){
+	public string ShouldIEngage(IMyRemoteControl cntrl, char InternalSep = '|'){
 
-		List<strings> orders =  DetData(TXT_NAME,CURRENT_ORDER_DATATYPE);
+		List<string> orders =  GetData(TXT_NAME,CURRENT_ORDER_DATATYPE);
 
 		string datachunk = orders[0];
 
-		string[] data = datachunk.Split(InternalSep)
+		string[] data = datachunk.Split(InternalSep);
 
 		string order = data[0];//If we have multiple ones (we should not) then take first
 
-		output = '1';
+		string output = "1";
 		//Move => ignore enemy
 		if (order == MOVE){
-			output = '0';
+			output = "0";
 
 		}else if (order == DEFEND){
 
-			Vector3 RelativeVec = order.position() - GPStoVector(data[1]);
+			Vector3 RelativeVec = cntrl.Position - GPStoVector(data[1]);
 
-			if(Vector3.Magnitude(RelativeVec) >> Convert.ToSingle(data[2])){
+			if(RelativeVec.Length() > Convert.ToSingle(data[2])){
 
 				output = data[1];//Returns center of defend ball
 			}
 
 		}
-		}
-		return output
+
+		return output;
 	}
 #endregion
 
@@ -110,9 +109,9 @@ const string CURRENT_ORDER_DATATYPE = "COrder";//This is the Current order Datat
 
 			//Pending, need to change indices
 
-			Vector3 gpsvector = new Vector3(Convert.ToSingle(coords[1]),
-															 Convert.ToSingle(coords[2]),
-															 Convert.ToSingle(coords[3]));
+			Vector3 gpsvector = new Vector3(Convert.ToSingle(coords[2]),
+															 Convert.ToSingle(coords[3]),
+															 Convert.ToSingle(coords[4]));
 
 			return gpsvector;
 	}
@@ -182,84 +181,73 @@ const string CURRENT_ORDER_DATATYPE = "COrder";//This is the Current order Datat
 
 #region Data Handling
 
-	/// <summary>
-	/// Extracts txt info, splits it and gets relevant DataChunks
-	/// </summary>
-	/// <param name="txt"></param>
-	/// txt panel
-	/// <param name="sep"></param>
-	/// separator used in split, which distinguishes between the different data chunks
-	/// <param name="type"></param>
-	/// type of data chunk you want
-	/// <param name="InternalSep"></param>
-	/// separator used in split, which distinguishes between the info within a data chunk
-	/// <returns></returns>
-	public List<string> GetData(string txtname, string type, char sep = '\n', char InternalSep = ':')
-	{
+/// <summary>
+/// Extracts txt info, splits it and gets relevant DataChunks
+/// </summary>
+/// <param name="txt"></param>
+/// txt panel
+/// <param name="sep"></param>
+/// separator used in split, which distinguishes between the different data chunks
+/// <param name="type"></param>
+/// type of data chunk you want
+/// <param name="InternalSep"></param>
+/// separator used in split, which distinguishes between the info within a data chunk
+/// <returns></returns>
+public List<string> GetData(string txtname, string type, char sep = '\n', char InternalSep = '|')
+{
 
-	    IMyTextPanel txt = GridTerminalSystem.GetBlockWithName(txtname) as IMyTextPanel;
+		IMyTextPanel txt = GridTerminalSystem.GetBlockWithName(txtname) as IMyTextPanel;
 
-	    string[] FullData = GetRef(txt, sep);
-	    List<string> output = new List<string>();
+		string[] FullData = GetRef(txt, sep);
+		List<string> output = new List<string>();
 
-	    foreach (string DataChunk in FullData)
-	    {
-	        string[] Data = DataChunk.Split(InternalSep);
-	        if (Data[0] == type)
-	        {
-	            //Adds full Data chunk
-	            output.Add(DataChunk);
-	        }
+		foreach (string DataChunk in FullData)
+		{
+				string[] Data = DataChunk.Split(InternalSep);
+				if (Data[0] == type)
+				{
+						//Adds full Data chunk
+						output.Add(DataChunk);
+				}
 
-	    }
-	    return output;
-	}
-
-
-	//Removes ALL instances of a datatype
-	public void RemoveDataType(IMyTextPanel txt, string type, char sep = '\n', char InternalSep = ':')
-	{
-
-	    string[] FullData = GetRef(txt, sep);
-
-	    //convert to list
-	    List<string> output = new List<string>(FullData);
-
-	    output.RemoveAll(x => x.Split(InternalSep).First().Equals(type));
-
-	    LcdClear(DATABASE_NAME);
-
-	    LcdPrint(DATABASE_NAME, output);
-
-	}
+		}
+		return output;
+}
 
 
-	//Removes ALL instances of a datatype
-	public void RemoveDataType(string txtname, string type, char sep = '\n', char InternalSep = ':')
-	{
+//Removes ALL instances of a datatype
+public void RemoveDataType(string txtname, string type, char sep = '\n', char InternalSep = '|')
+{
 
-			IMyTextPanel txt = GridTerminalSystem.GetBlockWithName(txtname) as IMyTextPanel;
+		IMyTextPanel txt = GridTerminalSystem.GetBlockWithName(txtname) as IMyTextPanel;
 
-			string[] FullData = GetRef(txt, sep);
+		string[] FullData = GetRef(txt, sep);
+
+		if(FullData.Length != 0){
 
 			//convert to list
 			List<string> output = new List<string>(FullData);
 
 			output.RemoveAll(x => x.Split(InternalSep).First().Equals(type));
 
-			LcdClear(DATABASE_NAME);
+			LcdClear(txtname);
 
-			LcdPrint(DATABASE_NAME, output);
+			foreach(string data in output){
+				LcdPrintln(data,txtname);
+			}
 
-	}
+		}
 
-	public void AddData(string  txtname ,string type, string data, char sep = '\n', char InternalSep = ':'){
 
-		string Datachunk = type + InternalSep + data + sep;
+}
 
-		LcdPrint(Datachunk,txtname);
+public void AddData(string  txtname ,string type, string data, char sep = '\n', char InternalSep = '|'){
 
-	}
+	string Datachunk = type + InternalSep + data + sep;
+
+	LcdPrint(Datachunk,txtname);
+
+}
 
 	public void LcdPrintln(string msg, string lcdName = "VarPanel")
 	{
@@ -271,6 +259,21 @@ const string CURRENT_ORDER_DATATYPE = "COrder";//This is the Current order Datat
 	    IMyTextPanel lcd =
 	      GridTerminalSystem.GetBlockWithName(lcdName) as IMyTextPanel;
 	    lcd.WritePublicText(lcd.GetPublicText() + msg);
+	}
+
+	/// <summary>
+	/// Clears selected LCD's public text and returns it.
+	/// </summary>
+	/// <param name="lcdName">Block Name of LCD (not the Title!)</param>
+	/// <returns></returns>
+	public string LcdClear(string lcdName)
+	{
+			IMyTextPanel lcd =
+				GridTerminalSystem.GetBlockWithName(lcdName) as IMyTextPanel;
+			string text = lcd.GetPublicText();
+			lcd.WritePublicText("");
+			return text;
+
 	}
 #endregion
 
@@ -286,37 +289,60 @@ public void Main(string ArgumentFull){
 
 	string[] Arguments = ArgumentFull.Split(';');
 
+	IMyRemoteControl cntrl = GridTerminalSystem.GetBlockWithName(CNTRL_NAME) as IMyRemoteControl;
 
-	if(Arguments[0] == 'Main'){
+
+	if(Arguments[0] == "Main"){
 		//Check if we are allowed to engage
-		string Orders = ShouldIEngage();
-		if(Orders == '1'){
+
+		string orders = ShouldIEngage(cntrl);
+		if(orders == "1"){
 			//Amove or Defend in bounds
 			IMyLargeTurretBase director = GridTerminalSystem.GetBlockWithName(TargetingGun) as IMyLargeTurretBase;
 
-      IMyRemoteControl cntrl = GridTerminalSystem.GetBlockWithName(CNTRL_NAME) as IMyRemoteControl;
 
 			if(CheckForTargets(director)){
 
         //If Targets Found Maintain Positiong & Report
         //Go to my current position (TO DO : add a bit of randomization for harder targeting by the enemy)
-        GoTo(cntrl,cntrl.position());
+				Vector3 Enemy = GetTargetVector(director);
+
+				Vector3 Us = cntrl.GetPosition();
+
+				Vector3 EnemyRel = Enemy - Us;//Get Enemy Relative To Us
+
+				Vector3 EnemyDir = EnemyRel/EnemyRel.Length();//Normalizing
+
+				Vector3 BestRange = Enemy - EffectiveRange * EnemyDir;//Moving to Effective Range
+
+        GoTo(cntrl,BestRange);
 
         //Report enemy
         ReportEnemy(director);
 			}
 
-		}else if (orders == '0'){
+		}else if (orders == "0"){
 			//This was a move
 		}else{
 			//Else it was a defend and we were out of bounds
-			GoTo(GPStoVector(orders));
+			GoTo(cntrl,GPStoVector(orders));
 		}
 
-	}else if (Argument == "AddOrder") {
+	}else if (Arguments[0] == "AddOrder") {
 		RemoveDataType(TXT_NAME,CURRENT_ORDER_DATATYPE);//Remove Past orders
 
 		AddData(TXT_NAME,CURRENT_ORDER_DATATYPE,Arguments[1]);//Adds New Parameters
+
+
+		string[] NewOrder = Arguments[1].Split('|');
+
+		if(NewOrder[0] == AMOVE || NewOrder[0] == MOVE){
+
+			Vector3 vec  = GPStoVector(NewOrder[1]);
+
+			GoTo(cntrl,vec);
+
+		}
 	}
 
 }

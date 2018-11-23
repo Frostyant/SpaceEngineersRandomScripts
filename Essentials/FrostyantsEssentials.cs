@@ -51,7 +51,7 @@
             return output;
         }
 
-        public void RemoveDataType(IMyTextPanel txt, string type, char sep = '\n', char InternalSep = ':')
+        public void RemoveDataType(IMyTextPanel txt, string type, char sep = '\n', char InternalSep = '|')
         {
 
             string[] FullData = GetRef(txt, sep);
@@ -138,7 +138,7 @@
         /// <param name="InternalSep"></param>
         /// separator used in split, which distinguishes between the info within a data chunk
         /// <returns></returns>
-        public List<string> GetData(IMyTextPanel txt, string type, char sep = '\n', char InternalSep = ':')
+        public List<string> GetData(IMyTextPanel txt, string type, char sep = '\n', char InternalSep = '|')
         {
             string[] FullData = GetRef(txt, sep);
             List<string> output = new List<string>();
@@ -167,7 +167,7 @@
         /// <param name="InternalSep"></param>
         /// separator used in split, which distinguishes between the info within a data chunk
         /// <returns></returns>
-        public List<string> GetData(string txtname, string type, char sep = '\n', char InternalSep = ':')
+        public List<string> GetData(string txtname, string type, char sep = '\n', char InternalSep = '|')
         {
 
             IMyTextPanel txt = GridTerminalSystem.GetBlockWithName(txtname) as IMyTextPanel;

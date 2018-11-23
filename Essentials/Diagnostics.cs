@@ -57,7 +57,7 @@ const string WEAPONS_HP_DATAPYE = "WeaponHp";//datatype for Weapons systems hp
 
 
 
-  public List<float> CheckHp(char InternalSep = ':'){
+  public List<float> CheckHp(char InternalSep = '|'){
     //initialising
 
     List<IMyTerminalBlock> AllTerminalBlocks = new List<IMyTerminalBlock>();
@@ -268,7 +268,7 @@ const string WEAPONS_HP_DATAPYE = "WeaponHp";//datatype for Weapons systems hp
 	/// <param name="InternalSep"></param>
 	/// separator used in split, which distinguishes between the info within a data chunk
 	/// <returns></returns>
-	public List<string> GetData(string txtname, string type, char sep = '\n', char InternalSep = ':')
+	public List<string> GetData(string txtname, string type, char sep = '\n', char InternalSep = '|')
 	{
 
 	    IMyTextPanel txt = GridTerminalSystem.GetBlockWithName(txtname) as IMyTextPanel;
@@ -291,7 +291,7 @@ const string WEAPONS_HP_DATAPYE = "WeaponHp";//datatype for Weapons systems hp
 
 
 	//Removes ALL instances of a datatype
-	public void RemoveDataType(string txtname, string type, char sep = '\n', char InternalSep = ':')
+	public void RemoveDataType(string txtname, string type, char sep = '\n', char InternalSep = '|')
 	{
 
 			IMyTextPanel txt = GridTerminalSystem.GetBlockWithName(txtname) as IMyTextPanel;
@@ -316,7 +316,7 @@ const string WEAPONS_HP_DATAPYE = "WeaponHp";//datatype for Weapons systems hp
 
 	}
 
-	public void AddData(string  txtname ,string type, string data, char sep = '\n', char InternalSep = ':'){
+	public void AddData(string  txtname ,string type, string data, char sep = '\n', char InternalSep = '|'){
 
 		string Datachunk = type + InternalSep + data + sep;
 
