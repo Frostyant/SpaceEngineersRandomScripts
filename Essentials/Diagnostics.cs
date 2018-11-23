@@ -9,9 +9,9 @@ const string WEAPONS_HP_DATAPYE = "WeaponHp";//datatype for Weapons systems hp
 
     //initialising
 
-    AllTerminalBlocks = new List<IMyTerminalBlock>();
+    List<IMyTerminalBlock> AllTerminalBlocks = new List<IMyTerminalBlock>();
 
-    AllThrustBlocks = new List<IMyTerminalBlock>();
+    List<IMyTerminalBlock> AllThrustBlocks = new List<IMyTerminalBlock>();
 
 
     //Terminal Health
@@ -55,12 +55,14 @@ const string WEAPONS_HP_DATAPYE = "WeaponHp";//datatype for Weapons systems hp
     else { return false;}
   }
 
-  public List<float> CheckHp(){
+
+
+  public List<float> CheckHp(char InternalSep = ':'){
     //initialising
 
-    AllTerminalBlocks = new List<IMyTerminalBlock>();
+    List<IMyTerminalBlock> AllTerminalBlocks = new List<IMyTerminalBlock>();
 
-    AllThrustBlocks = new List<IMyTerminalBlock>();
+    List<IMyTerminalBlock> AllThrustBlocks = new List<IMyTerminalBlock>();
 
 
     //Terminal Health
@@ -72,17 +74,18 @@ const string WEAPONS_HP_DATAPYE = "WeaponHp";//datatype for Weapons systems hp
     GridTerminalSystem.GetBlocksOfType<IMyTerminalBlock>(AllTerminalBlocks);
 
     foreach(IMyTerminalBlock block in AllTerminalBlocks){
-      if(block.Functional){
+      if(block.IsFunctional){
 
-        Hp += 1;
+        Hp = Hp + 1;
 
         if(is_weapon(block)){
-          WeaponsHp += 1;
+          WeaponsHp = WeaponsHp + 1;
         }
 
       }
 
     }
+
 
 
     //Thrust Health
@@ -95,11 +98,12 @@ const string WEAPONS_HP_DATAPYE = "WeaponHp";//datatype for Weapons systems hp
 
       if(block.IsFunctional){
 
-        ThrustHp += 1;
+        ThrustHp = ThrustHp +  1;
 
       }
 
     }
+
 
 
     //Getting max hps
@@ -110,11 +114,11 @@ const string WEAPONS_HP_DATAPYE = "WeaponHp";//datatype for Weapons systems hp
 
     List<string> FullWeaponsString = GetData(TXT_NAME,WEAPONS_HP_DATAPYE);
 
-    int FullHp = FullHpString[1];
+    int FullHp = Convert.ToInt32(FullHpString[0].Split(InternalSep)[1]);
 
-    int FullThrustHp = FullThrustString[1];
+    int FullThrustHp = Convert.ToInt32(FullThrustString[0].Split(InternalSep)[1]);
 
-    int FullWeaponsHp = FullWeaponsString[1];
+    int FullWeaponsHp = Convert.ToInt32(FullWeaponsString[0].Split(InternalSep)[1]);
 
 
     //Getting percentages
@@ -125,13 +129,16 @@ const string WEAPONS_HP_DATAPYE = "WeaponHp";//datatype for Weapons systems hp
 
     float WeapPerc = (float) WeaponsHp / (float) FullWeaponsHp;
 
-    AllHps = new List<float>();
+    List<float> AllHps = new List<float>();
+
 
     AllHps.Add(HpPerc);
 
     AllHps.Add(ThrustPerc);
 
     AllHps.Add(WeapPerc);
+
+    return AllHps;
   }
 #endregion
 
@@ -284,24 +291,6 @@ const string WEAPONS_HP_DATAPYE = "WeaponHp";//datatype for Weapons systems hp
 
 
 	//Removes ALL instances of a datatype
-	public void RemoveDataType(IMyTextPanel txt, string type, char sep = '\n', char InternalSep = ':')
-	{
-
-	    string[] FullData = GetRef(txt, sep);
-
-	    //convert to list
-	    List<string> output = new List<string>(FullData);
-
-	    output.RemoveAll(x => x.Split(InternalSep).First().Equals(type));
-
-	    LcdClear(DATABASE_NAME);
-
-	    LcdPrint(DATABASE_NAME, output);
-
-	}
-
-
-	//Removes ALL instances of a datatype
 	public void RemoveDataType(string txtname, string type, char sep = '\n', char InternalSep = ':')
 	{
 
@@ -309,14 +298,21 @@ const string WEAPONS_HP_DATAPYE = "WeaponHp";//datatype for Weapons systems hp
 
 			string[] FullData = GetRef(txt, sep);
 
-			//convert to list
-			List<string> output = new List<string>(FullData);
+      if(FullData.Length != 0){
 
-			output.RemoveAll(x => x.Split(InternalSep).First().Equals(type));
+  			//convert to list
+  			List<string> output = new List<string>(FullData);
 
-			LcdClear(DATABASE_NAME);
+  			output.RemoveAll(x => x.Split(InternalSep).First().Equals(type));
 
-			LcdPrint(DATABASE_NAME, output);
+  			LcdClear(txtname);
+
+        foreach(string data in output){
+          LcdPrintln(data,txtname);
+        }
+
+      }
+
 
 	}
 
@@ -339,6 +335,21 @@ const string WEAPONS_HP_DATAPYE = "WeaponHp";//datatype for Weapons systems hp
 	      GridTerminalSystem.GetBlockWithName(lcdName) as IMyTextPanel;
 	    lcd.WritePublicText(lcd.GetPublicText() + msg);
 	}
+
+  /// <summary>
+  /// Clears selected LCD's public text and returns it.
+  /// </summary>
+  /// <param name="lcdName">Block Name of LCD (not the Title!)</param>
+  /// <returns></returns>
+  public string LcdClear(string lcdName)
+  {
+      IMyTextPanel lcd =
+        GridTerminalSystem.GetBlockWithName(lcdName) as IMyTextPanel;
+      string text = lcd.GetPublicText();
+      lcd.WritePublicText("");
+      return text;
+
+  }
 #endregion
 
 public void Main(string Argument){
@@ -346,12 +357,12 @@ public void Main(string Argument){
     List<float> Hps = CheckHp();
 
     LcdClear(HP_DISP_NAME);
-    
-    AddData(HP_DISP_NAME,SYST_HP_DATATYPE,Hp[0]);//Display overall Hp
 
-    AddData(HP_DISP_NAME,THRUST_HP_DATATYPE,Hp[1]);//Display Thruster Hp
+    AddData(HP_DISP_NAME,SYST_HP_DATATYPE,Convert.ToString(Hps[0]));//Display overall Hp
 
-    AddData(HP_DISP_NAME,WEAPONS_HP_DATAPYE,Hp[2]);//Display System Hp
+    AddData(HP_DISP_NAME,THRUST_HP_DATATYPE,Convert.ToString(Hps[1]));//Display Thruster Hp
+
+    AddData(HP_DISP_NAME,WEAPONS_HP_DATAPYE,Convert.ToString(Hps[2]));//Display System Hp
 
   }else if(Argument == "init"){
     InitHpSystem();
