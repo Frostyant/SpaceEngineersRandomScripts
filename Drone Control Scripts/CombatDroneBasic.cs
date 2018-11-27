@@ -186,6 +186,10 @@ const char InternalSep = '|';
 
 		return output;
 	}
+
+	public void RunPB(string PB_name,argument){
+		((IMyProgrammableBlock)GridTerminalSystem.GetBlockWithName(PB_name)).TryRun(argument) //Taken from discord thanks to Malware and Inflex
+	}
 #endregion
 
 #region Data Handling
